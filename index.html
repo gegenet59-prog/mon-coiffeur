@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#d6dcea">
+<title>Mon coiffeur</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="icone-192.png">
+<style>
+  :root { --fond:#d6dcea; --texte:#1e2761; --gris:#6b7099; --bleu:#408ec6; --bordeaux:#7a2048; --indigo:#1e2761; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; font-family:system-ui,-apple-system,Roboto,sans-serif; background:var(--fond); color:var(--texte); }
+  main { padding:16px; max-width:520px; margin:0 auto; }
+  form { display:flex; gap:8px; }
+  input { flex:1; font-size:17px; padding:14px; border:1px solid #ccc; border-radius:12px; min-width:0; }
+  button { font-size:17px; border:0; border-radius:12px; padding:0 18px; background:var(--texte); color:#fff; cursor:pointer; }
+  .entete { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:6px 0 14px; }
+  .entete .appli { display:block; font-size:13px; font-weight:600; color:var(--bleu); letter-spacing:.2px; }
+  .entete #salut { font-size:28px; font-weight:700; color:var(--indigo); line-height:1.1; }
+  .tuiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .tuile { display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap:18px; min-height:118px;
+           padding:16px; border-radius:22px; color:#fff; text-align:left; font-size:18px; font-weight:700; }
+  .tuile svg { width:30px; height:30px; }
+  .tuile small { display:block; font-size:12px; font-weight:500; opacity:.85; margin-top:2px; }
+  #gps { background:var(--bleu); }
+  #ailleurs { background:var(--bordeaux); }
+  .aide { color:var(--gris); font-size:14px; margin:10px 2px; }
+  #filtres { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+  #filtres button { background:#fff; color:var(--texte); border:1px solid #ddd; padding:8px 12px; font-size:14px; }
+  #filtres button.actif { background:var(--indigo); color:#fff; border-color:var(--indigo); }
+  #statut { margin-top:12px; color:var(--gris); }
+  .salon { background:#fff; border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .salon h2 { margin:0; font-size:16px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .salon .infos { display:flex; align-items:center; gap:10px; margin-top:8px; padding-top:8px; border-top:1px solid #eee; }
+  .dist { min-width:62px; text-align:center; font-weight:800; font-size:16px; color:#fff; background:var(--texte); border-radius:8px; padding:4px 6px; line-height:1.1; }
+  .dist small { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; opacity:.9; }
+  .detail { flex:1; font-size:14px; color:#333; line-height:1.35; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; border-radius:6px; padding:2px 6px; margin-right:4px; }
+  .badge.barbier { background:#f6e7ee; color:var(--bordeaux); }
+  .badge.coiffeur { background:#e6f1fb; color:#185fa5; }
+  .ouvert { color:#1a7f37; font-weight:600; }
+  .ferme { color:#b91c1c; font-weight:600; }
+  .horaires { color:var(--gris); font-size:12px; }
+  .itin { flex:none; width:36px; height:36px; border-radius:50%; background:#e6f1fb; color:#185fa5; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+  .itin:active { transform:scale(.95); }
+  .actions { display:flex; gap:8px; margin-top:10px; border-top:1px solid #eee; padding-top:10px; }
+  .actions a { flex:1; text-align:center; padding:10px; font-size:14px; background:#f2f2f4; color:var(--texte); border-radius:12px; text-decoration:none; }
+  #plus { width:100%; margin-top:14px; padding:13px; background:#fff; color:var(--indigo); border:1px solid #c9d6f2; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--texte); color:#fff;
+           padding:10px 16px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
+  #toast.visible { opacity:1; }
+  .sources { margin-top:28px; font-size:12px; text-align:center; }
+  .sources a { color:var(--gris); }
+</style>
+</head>
+<body>
+<main>
+  <div class="entete">
+    <div><span class="appli">Mon coiffeur</span><span id="salut">Bonjour</span></div>
+  </div>
+  <div id="toast"></div>
+  <div class="tuiles">
+    <button id="gps" class="tuile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>Autour de moi<small>Salons les plus proches</small></span></button>
+    <button id="ailleurs" class="tuile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Ailleurs<small>Une ville, une gare…</small></span></button>
+  </div>
+  <form id="formulaire" hidden>
+    <input id="lieu" placeholder="ex : gare de Bordeaux, Lyon Part-Dieu" autocomplete="off">
+    <button>OK</button>
+  </form>
+  <div id="filtres">
+    <button data-f="tous" class="actif">Tous</button>
+    <button data-f="barbier">💈 Barbier</button>
+    <button data-f="coiffeur">✂️ Coiffeur</button>
+    <button data-f="ouvert">🟢 Ouvert maintenant</button>
+  </div>
+  <div id="statut"></div>
+  <div id="resultats"></div>
+  <p class="aide sources">Données : <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© les contributeurs OpenStreetMap</a> (ODbL).
+    Les horaires peuvent manquer ou dater : vérifie sur Google avant d'y aller.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+$("salut").textContent = new Date().getHours() >= 18 || new Date().getHours() < 5 ? "Bonsoir" : "Bonjour";
+
+// ===== Réglage du métier : pour « À proximité », il suffira d'ajouter d'autres métiers ici =====
+const METIER = {
+  nom: "coiffeur",
+  requete: (r, la, lo) => `[out:json][timeout:25];(nwr["shop"="hairdresser"](around:${r},${la},${lo});nwr["shop"="barber"](around:${r},${la},${lo}););out center tags;`,
+};
+const SERVEURS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+
+let SALONS = [], FILTRE = "tous", CENTRE = null, NB_AFFICHES = 15;
+
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("visible"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("visible"), 2500); }
+function echapper(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+function distance(a, b, c, d) { const R = 6371000, r = x => x * Math.PI / 180; const x = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+
+// ===== Recherche des salons (OpenStreetMap / Overpass) =====
+async function overpass(q) {
+  for (const s of SERVEURS) {
+    try {
+      const r = await fetch(s, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if (r.ok) return (await r.json()).elements || [];
+    } catch {}
+  }
+  throw new Error("serveurs indisponibles");
+}
+
+function versSalon(e) {
+  const t = e.tags || {}, la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
+  if (la == null || !t.name) return null;
+  const texte = `${t.name} ${t.hairdresser || ""}`.toLowerCase();
+  const barbier = t.shop === "barber" || /barber|male|men/.test(t.hairdresser || "") || /barb|barber/.test(texte);
+  const adresse = [[t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "), t["addr:city"]].filter(Boolean).join(", ");
+  return { nom: t.name, la, lo, barbier, adresse, horaires: t.opening_hours || "", tel: t.phone || t["contact:phone"] || "",
+           site: t.website || t["contact:website"] || "" };
+}
+
+async function chercher(la, lo, lieuTexte) {
+  CENTRE = [la, lo]; NB_AFFICHES = 15;
+  $("resultats").innerHTML = "";
+  $("statut").textContent = `Recherche des salons ${lieuTexte ? "près de " + lieuTexte : "autour de toi"}…`;
+  try {
+    let elements = [];
+    for (const r of [1000, 3000, 8000]) {           // on élargit tant qu'il y a peu de salons
+      elements = await overpass(METIER.requete(r, la, lo));
+      if (elements.length >= 8) break;
+    }
+    SALONS = elements.map(versSalon).filter(Boolean)
+      .map(s => ({ ...s, d: distance(la, lo, s.la, s.lo) }))
+      .sort((a, b) => a.d - b.d);
+    afficher();
+  } catch {
+    $("statut").textContent = "Impossible de joindre OpenStreetMap pour l'instant. Réessaie dans un moment.";
+  }
+}
+
+// ===== Horaires : « ouvert maintenant » (formats simples d'OpenStreetMap) =====
+const JOURS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+function ouvertMaintenant(oh, quand = new Date()) {
+  if (!oh) return null;
+  if (oh.trim() === "24/7") return true;
+  const j = quand.getDay(), m = quand.getHours() * 60 + quand.getMinutes();
+  let trouve = null;
+  for (const partie of oh.split(";").map(p => p.trim()).filter(Boolean)) {
+    const mm = partie.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?,?\s*)+)\s+(.+)$/);
+    if (!mm) { if (/PH|SH|\[|week|easter/i.test(partie)) continue; return null; }
+    const jours = new Set();
+    for (const bloc of mm[1].split(",").map(s => s.trim()).filter(Boolean)) {
+      const [a, b] = bloc.split("-").map(x => JOURS.indexOf(x));
+      if (a < 0) return null;
+      if (b == null || b < 0) jours.add(a); else for (let k = a; ; k = (k + 1) % 7) { jours.add(k); if (k === b) break; }
+    }
+    if (!jours.has(j)) { if (trouve === null) trouve = false; continue; }
+    if (/^off|closed$/i.test(mm[2].trim())) { trouve = false; continue; }
+    trouve = false;
+    for (const plage of mm[2].split(",")) {
+      const h = plage.trim().match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+      if (!h) return null;
+      const deb = +h[1] * 60 + +h[2], fin = +h[3] * 60 + +h[4];
+      if (m >= deb && m < fin) trouve = true;
+    }
+  }
+  return trouve;
+}
+function horairesLisibles(oh) {
+  const fr = { Mo:"lun", Tu:"mar", We:"mer", Th:"jeu", Fr:"ven", Sa:"sam", Su:"dim", off:"fermé", closed:"fermé", PH:"fériés" };
+  return oh.replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su|off|closed|PH)\b/g, x => fr[x]).replace(/;\s*/g, " · ").replace(/\b0?(\d{1,2}):00\b/g, "$1h").replace(/\b0?(\d{1,2}):(\d\d)\b/g, "$1h$2");
+}
+
+// ===== Affichage =====
+const SUR_IPHONE = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const PICTO_ITINERAIRE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 21.5 12 12 21.5 2.5 12Z"/><path d="M9.5 15v-2.5a2 2 0 0 1 2-2H15"/><path d="M13 8.5l2 2-2 2"/></svg>`;
+function boutonItineraire(s) {
+  const url = SUR_IPHONE ? `https://maps.apple.com/?daddr=${s.la},${s.lo}&dirflg=w`
+                         : `https://www.google.com/maps/dir/?api=1&destination=${s.la},${s.lo}&travelmode=walking`;
+  return `<a class="itin" href="${url}" target="_blank" rel="noopener" aria-label="Y aller : ${echapper(s.nom)}" title="Y aller">${PICTO_ITINERAIRE}</a>`;
+}
+function distanceTexte(d) {
+  return d < 1000 ? `${Math.round(d / 10) * 10}<small>mètres</small>` : `${(d / 1000).toFixed(1).replace(".", ",")}<small>km</small>`;
+}
+
+function afficher() {
+  const liste = SALONS.filter(s => FILTRE === "tous" || (FILTRE === "barbier" ? s.barbier : FILTRE === "coiffeur" ? !s.barbier : ouvertMaintenant(s.horaires) === true));
+  if (!SALONS.length) { $("statut").textContent = "Aucun salon trouvé dans le coin."; $("resultats").innerHTML = ""; return; }
+  $("statut").textContent = liste.length ? `${liste.length} salon${liste.length > 1 ? "s" : ""}, du plus proche au plus loin` : "Aucun salon pour ce filtre.";
+  $("resultats").innerHTML = liste.slice(0, NB_AFFICHES).map(s => {
+    const o = ouvertMaintenant(s.horaires);
+    const etat = o === true ? `<span class="ouvert">Ouvert</span>` : o === false ? `<span class="ferme">Fermé</span>` : "";
+    const google = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.nom} ${s.adresse}`.trim())}`;
+    return `<div class="salon">
+      <h2><span>${echapper(s.nom)}</span>${boutonItineraire(s)}</h2>
+      <div class="infos">
+        <div class="dist">${distanceTexte(s.d)}</div>
+        <div class="detail">
+          <span class="badge ${s.barbier ? "barbier" : "coiffeur"}">${s.barbier ? "Barbier" : "Coiffeur"}</span>${etat}
+          ${s.adresse ? `<div>${echapper(s.adresse)}</div>` : ""}
+          ${s.horaires ? `<div class="horaires">${echapper(horairesLisibles(s.horaires))}</div>` : `<div class="horaires">Horaires non renseignés</div>`}
+        </div>
+      </div>
+      <div class="actions">
+        <a href="${google}" target="_blank" rel="noopener">⭐ Avis Google</a>
+        ${s.tel ? `<a href="tel:${echapper(s.tel.replace(/\s/g, ""))}">📞 Appeler</a>` : ""}
+      </div>
+    </div>`;
+  }).join("") + (liste.length > NB_AFFICHES ? `<button id="plus">Voir plus de salons</button>` : "");
+  $("plus")?.addEventListener("click", () => { NB_AFFICHES += 15; afficher(); });
+}
+
+// ===== Boutons =====
+$("gps").addEventListener("click", () => {
+  if (!navigator.geolocation) return toast("Ton téléphone ne donne pas sa position.");
+  $("statut").textContent = "Je cherche où tu es…";
+  navigator.geolocation.getCurrentPosition(
+    p => chercher(p.coords.latitude, p.coords.longitude),
+    () => { $("statut").textContent = "Position refusée ou introuvable. Utilise « Ailleurs » pour taper un lieu."; },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+});
+$("ailleurs").addEventListener("click", () => { $("formulaire").hidden = false; $("lieu").focus(); });
+$("formulaire").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = $("lieu").value.trim(); if (!q) return;
+  $("statut").textContent = `Je cherche « ${q} »…`;
+  try {
+    const r = await (await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=fr&q=${encodeURIComponent(q)}`)).json();
+    if (!r.length) { $("statut").textContent = `Lieu « ${q} » introuvable. Essaie avec la ville en plus.`; return; }
+    $("lieu").blur();
+    chercher(+r[0].lat, +r[0].lon, r[0].display_name.split(",").slice(0, 2).join(","));
+  } catch { $("statut").textContent = "Recherche du lieu impossible pour l'instant."; }
+});
+$("filtres").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  FILTRE = b.dataset.f;
+  document.querySelectorAll("#filtres button").forEach(x => x.classList.toggle("actif", x === b));
+  if (FILTRE === "ouvert") toast("Seuls les salons avec horaires connus apparaissent.");
+  if (SALONS.length) afficher();
+});
+</script>
+</body>
+</html>

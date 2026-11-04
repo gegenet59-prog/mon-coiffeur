@@ -1,0 +1,16 @@
+{
+  "name": "Mon coiffeur",
+  "short_name": "Mon coiffeur",
+  "description": "Trouver un coiffeur ou un barbier autour de soi, même dans une ville inconnue",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#d6dcea",
+  "theme_color": "#7a2048",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
