@@ -189,7 +189,7 @@ function ouvertMaintenant(oh, quand = new Date()) {
   if (oh.trim() === "24/7") return true;
   const j = quand.getDay(), m = quand.getHours() * 60 + quand.getMinutes();
   let trouve = null;
-  for (const partie of oh.split(";").map(p => p.trim()).filter(Boolean)) {
+  for (const partie of oh.split(/;|(?<=\d),\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su)\b)/).map(p => (p || "").trim()).filter(Boolean)) {
     const mm = partie.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?,?\s*)+)\s+(.+)$/);
     if (!mm) { if (/PH|SH|\[|week|easter/i.test(partie)) continue; return null; }
     const jours = new Set();
