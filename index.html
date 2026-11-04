@@ -80,6 +80,7 @@
   <div id="statut"></div>
   <div id="resultats"></div>
   <p class="aide sources">Données : <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© les contributeurs OpenStreetMap</a> (ODbL).
+    et <a href="https://www.data.gouv.fr/datasets/base-sirene-des-entreprises-et-de-leurs-etablissements-siren-siret" target="_blank" rel="noopener">base Sirene de l'Insee</a>.
     Les horaires peuvent manquer ou dater : vérifie sur Google avant d'y aller.</p>
 </main>
 <script>
@@ -129,10 +130,40 @@ function versSalon(e) {
            site: t.website || t["contact:website"] || "" };
 }
 
+// ===== Base des salons (fichiers préparés chaque semaine, découpés en tuiles) =====
+let INDEX = null;
+const TUILES = new Map();
+const pretIndex = fetch("data/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null)
+  .then(j => { INDEX = j && { ...j, tuiles: new Set(j.tuiles) }; }).catch(() => {});
+
+async function depuisBase(la, lo, rayon) {
+  await pretIndex;
+  if (!INDEX) return null;
+  const p = INDEX.pas, dla = rayon / 111320, dlo = dla / Math.cos(la * Math.PI / 180), cles = [];
+  for (let i = Math.floor((la - dla) / p); i <= Math.floor((la + dla) / p); i++)
+    for (let j = Math.floor((lo - dlo) / p); j <= Math.floor((lo + dlo) / p); j++) cles.push(`${i}_${j}`);
+  const presentes = cles.filter(c => INDEX.tuiles.has(c));
+  if (!presentes.length) return null;            // hors de France : pas de fichier ici
+  const listes = await Promise.all(presentes.map(async c => {
+    if (!TUILES.has(c)) TUILES.set(c, fetch(`data/tuiles/${c}.json`).then(r => r.json()).catch(() => { TUILES.delete(c); return []; }));
+    return TUILES.get(c);
+  }));
+  return listes.flat().map(([nom, sla, slo, barbier, adresse, horaires, tel]) =>
+    ({ nom, la: sla, lo: slo, barbier: !!barbier, adresse, horaires, tel, d: distance(la, lo, sla, slo) }))
+    .filter(s => s.d <= rayon);
+}
+
 async function chercher(la, lo, lieuTexte) {
   CENTRE = [la, lo]; NB_AFFICHES = 15;
   $("resultats").innerHTML = "";
   $("statut").textContent = `Recherche des salons ${lieuTexte ? "près de " + lieuTexte : "autour de toi"}…`;
+  // 1. La base préparée : instantané, partout en France
+  try {
+    let liste = await depuisBase(la, lo, 3000);
+    if (liste && liste.length < 8) liste = await depuisBase(la, lo, 10000);
+    if (liste) { SALONS = liste.sort((a, b) => a.d - b.d); return afficher(); }
+  } catch {}
+  // 2. Ailleurs (étranger…) : recherche en direct sur OpenStreetMap
   const lent = setTimeout(() => { $("statut").textContent = "Les serveurs OpenStreetMap sont lents, je patiente encore un peu…"; }, 6000);
   try {
     let elements = [];

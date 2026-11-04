@@ -23,6 +23,8 @@ jobs:
       url: ${{ steps.deploiement.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Reprendre la base des salons (branche donnees)
+        run: git clone --depth 1 --branch donnees "https://github.com/${{ github.repository }}" data && rm -rf data/.git || echo "Pas encore de base"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
