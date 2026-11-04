@@ -48,12 +48,20 @@ def est_barbier(nom):
 def garder(r):
     """Un salon SIRENE est gardé s'il est ouvert, diffusible, localisé, et pas un coiffeur à domicile.
     Coiffeur à domicile probable = entrepreneur individuel sans enseigne (déclaré à son adresse perso)."""
-    if r.get("etat") != "A" or r.get("diffusion") == "P" or not r.get("pos"):
+    if r.get("etat") != "A" or r.get("diffusion") == "P" or not r.get("pos") or not en_france(r["pos"]):
         return False
     return bool(r.get("enseigne")) or (r.get("cj") or "1000")[:1] != "1"
 
+FORMES = r"(?i)^(sarl|sas|sasu|eurl|snc|sa|selarl|scp)\s+|\s+(sarl|sas|sasu|eurl|snc)$"
 def nom_sirene(r):
-    return r.get("enseigne") or r.get("denom_usuelle") or r.get("denom") or ""
+    nom = r.get("enseigne") or r.get("denom_usuelle") or r.get("denom") or ""
+    return re.sub(FORMES, "", nom).strip(" -") or nom
+
+# Zones plausibles (métropole, Corse, outre-mer) : écarte les coordonnées aberrantes
+ZONES = [(41.3, -5.3, 51.2, 9.7), (15.8, -61.9, 16.6, -60.9), (14.3, -61.3, 14.9, -60.7), (2.0, -54.7, 5.9, -51.5),
+         (-21.5, 55.1, -20.8, 55.9), (-13.1, 44.9, -12.6, 45.4)]
+def en_france(p):
+    return any(a <= p[0] <= c and b <= p[1] <= d for a, b, c, d in ZONES)
 
 PETITS = {"De", "Du", "Des", "La", "Le", "Les", "Et", "A", "Au", "Aux", "En", "Sur", "D", "L"}
 def titre(t):
@@ -222,7 +230,7 @@ def main():
         etab, ul, osm_chemin = sys.argv[2:5]
         base = {r["siret"]: r for r in lire_stock(etab, ul)}
         info = {"maj_sirene": date.today().isoformat()}
-        print(f"SIRENE : {len(base)} salons ouverts (code {CODE_COIFFURE})")
+        print(flush=True); print(f"SIRENE : {len(base)} salons ouverts (code {CODE_COIFFURE})")
     else:
         osm_chemin = sys.argv[2]
         stock = json.load(open(BASE_SIRENE))
@@ -238,12 +246,12 @@ def main():
                     ajouts += r["siret"] not in base
                     base[r["siret"]] = r
             info["maj_sirene"] = date.today().isoformat()
-            print(f"SIRENE (API) depuis le {depuis} : {ajouts} nouveaux, {fermetures} fermés ou changés d'activité")
+            print(flush=True); print(f"SIRENE (API) depuis le {depuis} : {ajouts} nouveaux, {fermetures} fermés ou changés d'activité")
         else:
             print("Pas de clé SIRENE_CLE : base SIRENE inchangée, seul OpenStreetMap est mis à jour")
     BASE_SIRENE.write_text(json.dumps({"info": info, "salons": base}, ensure_ascii=False, separators=(",", ":")))
     gardes = sum(garder(r) for r in base.values())
-    print(f"SIRENE gardés (localisés, hors coiffeurs à domicile) : {gardes}")
+    print(flush=True); print(f"SIRENE gardés (localisés, hors coiffeurs à domicile) : {gardes}")
     osm = lire_osm(osm_chemin)
     print(f"OpenStreetMap : {len(osm)} salons avec un nom")
     salons, doublons = fusionner(base.values(), osm)

@@ -36,8 +36,18 @@ jobs:
       - run: pip install duckdb pyproj
       - name: Reprendre la base existante (branche donnees)
         run: git clone --depth 1 --branch donnees "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" data || mkdir -p data
-      - name: Télécharger les salons OpenStreetMap de France
-        run: python3 scripts/osm.py /tmp/osm.json
+      - name: Télécharger les salons OpenStreetMap de France (Geofabrik)
+        run: |
+          sudo apt-get install -y -qq osmium-tool > /dev/null
+          if curl -sfL --retry 3 -o /tmp/fr.pbf https://download.geofabrik.de/europe/france-latest.osm.pbf; then
+            ls -lh /tmp/fr.pbf
+            osmium tags-filter /tmp/fr.pbf nwr/shop=hairdresser,barber -o /tmp/salons.pbf
+            rm /tmp/fr.pbf
+            osmium export /tmp/salons.pbf -f geojsonseq -a type,id --geometry-types=point,linestring,polygon -o /tmp/salons.geojsonseq
+            python3 scripts/osm.py /tmp/salons.geojsonseq /tmp/osm.json
+          else
+            echo "Téléchargement Geofabrik raté"; echo '{"elements":[]}' > /tmp/osm.json
+          fi
       - name: Fusion de départ (gros fichier SIRENE, une seule fois)
         if: inputs.mode == 'initial' || hashFiles('data/sirene.json') == ''
         run: |
