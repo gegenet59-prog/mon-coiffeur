@@ -48,6 +48,7 @@
   .itin { flex:none; width:36px; height:36px; border-radius:50%; background:#e6f1fb; color:#185fa5; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
   .itin:active { transform:scale(.95); }
   .actions { display:flex; gap:8px; margin-top:10px; border-top:1px solid #eee; padding-top:10px; }
+  .actions a.site { background:var(--indigo); color:#fff; font-weight:600; }
   .actions a { flex:1; text-align:center; padding:10px; font-size:14px; background:#f2f2f4; color:var(--texte); border-radius:12px; text-decoration:none; }
   #plus { width:100%; margin-top:14px; padding:13px; background:#fff; color:var(--indigo); border:1px solid #c9d6f2; }
   #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--texte); color:#fff;
@@ -120,6 +121,11 @@ async function overpass(q) {
   catch { throw new Error("serveurs indisponibles"); }
 }
 
+function lien(u) {
+  u = String(u).split(";")[0].trim();
+  if (u && !/^https?:\/\//.test(u)) u = "https://" + u;
+  return /^https?:\/\/[^\s/]+\.\S+/.test(u) ? u : "";
+}
 function versSalon(e) {
   const t = e.tags || {}, la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
   if (la == null || !t.name) return null;
@@ -127,7 +133,7 @@ function versSalon(e) {
   const barbier = t.shop === "barber" || /barber|male|men/.test(t.hairdresser || "") || /barb|barber/.test(texte);
   const adresse = [[t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "), t["addr:city"]].filter(Boolean).join(", ");
   return { nom: t.name, la, lo, barbier, adresse, horaires: t.opening_hours || "", tel: t.phone || t["contact:phone"] || "",
-           site: t.website || t["contact:website"] || "" };
+           site: lien(t.website || t["contact:website"] || t.url || t["contact:facebook"] || "") };
 }
 
 // ===== Base des salons (fichiers préparés chaque semaine, découpés en tuiles) =====
@@ -148,8 +154,8 @@ async function depuisBase(la, lo, rayon) {
     if (!TUILES.has(c)) TUILES.set(c, fetch(`data/tuiles/${c}.json`).then(r => r.json()).catch(() => { TUILES.delete(c); return []; }));
     return TUILES.get(c);
   }));
-  return listes.flat().map(([nom, sla, slo, barbier, adresse, horaires, tel]) =>
-    ({ nom, la: sla, lo: slo, barbier: !!barbier, adresse, horaires, tel, d: distance(la, lo, sla, slo) }))
+  return listes.flat().map(([nom, sla, slo, barbier, adresse, horaires, tel, site]) =>
+    ({ nom, la: sla, lo: slo, barbier: !!barbier, adresse, horaires, tel, site: site || "", d: distance(la, lo, sla, slo) }))
     .filter(s => s.d <= rayon);
 }
 
@@ -246,7 +252,8 @@ function afficher() {
         </div>
       </div>
       <div class="actions">
-        <a href="${google}" target="_blank" rel="noopener">⭐ Avis Google</a>
+        ${s.site ? `<a class="site" href="${echapper(s.site)}" target="_blank" rel="noopener">🌐 Réserver</a>` : ""}
+        <a href="${google}" target="_blank" rel="noopener">⭐ ${s.site ? "Google" : "Avis Google"}</a>
         ${s.tel ? `<a href="tel:${echapper(s.tel.replace(/\s/g, ""))}">📞 Appeler</a>` : ""}
       </div>
     </div>`;

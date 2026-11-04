@@ -146,6 +146,12 @@ def lire_api(depuis, cle):
         curseur = suivant
 
 # ---------- 3. OpenStreetMap ----------
+def lien(u):
+    u = u.split(";")[0].strip()
+    if u and not u.startswith(("http://", "https://")):
+        u = "https://" + u
+    return u if re.match(r"https?://[^\s/]+\.[^\s]+", u) else ""
+
 CACHE_OSM = DATA / "osm.json"
 def lire_osm(chemin):
     """Liste OSM de la semaine ; si le téléchargement a raté, on garde celle de la semaine d'avant."""
@@ -172,7 +178,8 @@ def extraire_osm(chemin):
         adr = ", ".join(x for x in (" ".join(x for x in (t.get("addr:housenumber"), t.get("addr:street")) if x),
                                     " ".join(x for x in (t.get("addr:postcode"), t.get("addr:city")) if x)) if x)
         sortie.append({"nom": t["name"], "pos": (round(la, 6), round(lo, 6)), "barbier": barbier, "adresse": adr,
-                       "horaires": t.get("opening_hours", ""), "tel": t.get("phone") or t.get("contact:phone", "")})
+                       "horaires": t.get("opening_hours", ""), "tel": t.get("phone") or t.get("contact:phone", ""),
+                       "site": lien(t.get("website") or t.get("contact:website") or t.get("url") or t.get("contact:facebook") or "")})
     return sortie
 
 # ---------- 4. Fusion : un même salon présent dans les deux sources n'apparaît qu'une fois ----------
@@ -204,7 +211,7 @@ def fusionner(sirene, osm):
             if not meme["adresse"]:
                 meme["adresse"] = r["adresse"]       # OSM sans adresse : on prend celle de SIRENE
             continue
-        salons.append({"nom": nom, "pos": p, "barbier": est_barbier(nom), "adresse": r["adresse"], "horaires": "", "tel": ""})
+        salons.append({"nom": nom, "pos": p, "barbier": est_barbier(nom), "adresse": r["adresse"], "horaires": "", "tel": "", "site": ""})
     return salons, doublons
 
 def ecrire_tuiles(salons):
@@ -215,7 +222,7 @@ def ecrire_tuiles(salons):
     paquets = {}
     for s in salons:
         cle = f"{math.floor(s['pos'][0] / PAS)}_{math.floor(s['pos'][1] / PAS)}"
-        paquets.setdefault(cle, []).append([s["nom"], s["pos"][0], s["pos"][1], int(s["barbier"]), s["adresse"], s["horaires"], s["tel"]])
+        paquets.setdefault(cle, []).append([s["nom"], s["pos"][0], s["pos"][1], int(s["barbier"]), s["adresse"], s["horaires"], s["tel"], s.get("site", "")])
     for cle, liste in paquets.items():
         (TUILES / f"{cle}.json").write_text(json.dumps(liste, ensure_ascii=False, separators=(",", ":")))
     (DATA / "index.json").write_text(json.dumps({"pas": PAS, "maj": date.today().isoformat(), "salons": len(salons),
