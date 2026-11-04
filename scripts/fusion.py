@@ -45,12 +45,18 @@ def propre(t):
 def est_barbier(nom):
     return bool(re.search(r"barb", nom or "", re.I))
 
+DOMICILE = re.compile(r"domicil|mobile|nomade|itin[ée]rant|chez vous|chez soi|ambulant|à la maison|a la maison", re.I)
 def garder(r):
     """Un salon SIRENE est gardé s'il est ouvert, diffusible, localisé, et pas un coiffeur à domicile.
     Coiffeur à domicile probable = entrepreneur individuel sans enseigne (déclaré à son adresse perso)."""
     if r.get("etat") != "A" or r.get("diffusion") == "P" or not r.get("pos") or not en_france(r["pos"]):
         return False
-    return bool(r.get("enseigne")) or (r.get("cj") or "1000")[:1] != "1"
+    if DOMICILE.search(nom_sirene(r)):
+        return False                       # « Coiffure à domicile », « coiffeuse mobile »…
+    return bool(r.get("enseigne")) or not individuel(r)
+
+def individuel(r):
+    return (r.get("cj") or "1000")[:1] == "1"
 
 FORMES = r"(?i)^(sarl|sas|sasu|eurl|snc|sa|selarl|scp)\s+|\s+(sarl|sas|sasu|eurl|snc)$"
 def nom_sirene(r):
@@ -211,7 +217,8 @@ def fusionner(sirene, osm):
             if not meme["adresse"]:
                 meme["adresse"] = r["adresse"]       # OSM sans adresse : on prend celle de SIRENE
             continue
-        salons.append({"nom": nom, "pos": p, "barbier": est_barbier(nom), "adresse": r["adresse"], "horaires": "", "tel": "", "site": ""})
+        salons.append({"nom": nom, "pos": p, "barbier": est_barbier(nom), "adresse": r["adresse"], "horaires": "", "tel": "", "site": "",
+                       "doute": individuel(r)})
     return salons, doublons
 
 def ecrire_tuiles(salons):
@@ -222,7 +229,7 @@ def ecrire_tuiles(salons):
     paquets = {}
     for s in salons:
         cle = f"{math.floor(s['pos'][0] / PAS)}_{math.floor(s['pos'][1] / PAS)}"
-        paquets.setdefault(cle, []).append([s["nom"], s["pos"][0], s["pos"][1], int(s["barbier"]), s["adresse"], s["horaires"], s["tel"], s.get("site", "")])
+        paquets.setdefault(cle, []).append([s["nom"], s["pos"][0], s["pos"][1], int(s["barbier"]), s["adresse"], s["horaires"], s["tel"], s.get("site", ""), int(s.get("doute", False))])
     for cle, liste in paquets.items():
         (TUILES / f"{cle}.json").write_text(json.dumps(liste, ensure_ascii=False, separators=(",", ":")))
     (DATA / "index.json").write_text(json.dumps({"pas": PAS, "maj": date.today().isoformat(), "salons": len(salons),
@@ -263,7 +270,7 @@ def main():
     print(f"OpenStreetMap : {len(osm)} salons avec un nom")
     salons, doublons = fusionner(base.values(), osm)
     n = ecrire_tuiles(salons)
-    print(f"Total : {len(salons)} salons ({doublons} doublons retirés), {n} tuiles")
+    print(f"Total : {len(salons)} salons ({doublons} doublons retirés, {sum(bool(x.get('doute')) for x in salons)} à confirmer), {n} tuiles")
 
 if __name__ == "__main__":
     main()

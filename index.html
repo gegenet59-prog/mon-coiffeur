@@ -88,6 +88,10 @@
                background:#f3efe6; color:var(--encre); border-radius:12px; text-decoration:none; white-space:nowrap; }
   .actions a.site { background:var(--rouge); color:#fff; }
   .actions svg { width:16px; height:16px; }
+  .separation { margin:26px 4px 2px; padding-top:16px; border-top:1px dashed #cfc6b4; color:var(--gris); font-size:13px; line-height:1.45; }
+  .separation b { display:block; color:var(--encre); font-size:15px; margin-bottom:2px; }
+  .salon.doute { background:#fbf8f2; box-shadow:0 1px 2px rgba(20,33,61,.05); }
+  .salon.doute::before { opacity:.25; }
   #plus { width:100%; margin-top:16px; padding:14px; background:var(--carte); color:var(--encre); border:1px solid var(--ligne); border-radius:16px; font-weight:600; }
   #toast { position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:var(--encre); color:#fff;
            padding:10px 16px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
@@ -201,8 +205,8 @@ async function depuisBase(la, lo, rayon) {
     if (!TUILES.has(c)) TUILES.set(c, fetch(`data/tuiles/${c}.json`).then(r => r.json()).catch(() => { TUILES.delete(c); return []; }));
     return TUILES.get(c);
   }));
-  return listes.flat().map(([nom, sla, slo, barbier, adresse, horaires, tel, site]) =>
-    ({ nom, la: sla, lo: slo, barbier: !!barbier, adresse, horaires, tel, site: site || "", d: distance(la, lo, sla, slo) }))
+  return listes.flat().map(([nom, sla, slo, barbier, adresse, horaires, tel, site, doute]) =>
+    ({ nom, la: sla, lo: slo, barbier: !!barbier, adresse, horaires, tel, site: site || "", doute: !!doute, d: distance(la, lo, sla, slo) }))
     .filter(s => s.d <= rayon);
 }
 
@@ -215,7 +219,7 @@ async function chercher(la, lo, lieuTexte) {
   try {
     let liste = await depuisBase(la, lo, 3000);
     if (liste && liste.length < 8) liste = await depuisBase(la, lo, 10000);
-    if (liste) { SALONS = liste.sort((a, b) => a.d - b.d); return afficher(); }
+    if (liste) { SALONS = liste.sort((a, b) => (a.doute - b.doute) || (a.d - b.d)); return afficher(); }
   } catch {}
   // 2. Ailleurs (étranger…) : recherche en direct sur OpenStreetMap
   const lent = setTimeout(() => { $("statut").textContent = "Les serveurs OpenStreetMap sont lents, je patiente encore un peu…"; }, 6000);
@@ -292,12 +296,17 @@ function afficher() {
   $("statut").classList.remove("charge");
   const liste = SALONS.filter(s => FILTRE === "tous" || (FILTRE === "barbier" ? s.barbier : FILTRE === "coiffeur" ? !s.barbier : ouvertMaintenant(s.horaires) === true));
   if (!SALONS.length) { $("statut").textContent = "Aucun salon trouvé dans le coin."; $("resultats").innerHTML = ""; return; }
-  $("statut").textContent = liste.length ? `${liste.length} salon${liste.length > 1 ? "s" : ""}, du plus proche au plus loin` : "Aucun salon pour ce filtre.";
-  $("resultats").innerHTML = liste.slice(0, NB_AFFICHES).map((s, i) => {
+  const nbDoute = liste.filter(s => s.doute).length, nbSurs = liste.length - nbDoute;
+  $("statut").textContent = !liste.length ? "Aucun salon pour ce filtre."
+    : nbDoute ? `${nbSurs} salon${nbSurs > 1 ? "s" : ""} confirmé${nbSurs > 1 ? "s" : ""}, puis ${nbDoute} à confirmer`
+    : `${liste.length} salon${liste.length > 1 ? "s" : ""}, du plus proche au plus loin`;
+  $("resultats").innerHTML = liste.slice(0, NB_AFFICHES).map((s, i, t) => {
+    const separation = s.doute && (i === 0 || !t[i - 1].doute)
+      ? `<div class="separation"><b>À confirmer</b><span>Petits salons connus seulement par leur déclaration d'entreprise : parfois des coiffeurs à domicile.</span></div>` : "";
     const o = ouvertMaintenant(s.horaires);
     const etat = o === true ? `<span class="pastille ouvert">● Ouvert</span>` : o === false ? `<span class="pastille ferme">Fermé</span>` : "";
     const google = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.nom} ${s.adresse}`.trim())}`;
-    return `<article class="salon ${s.barbier ? "barbier" : ""}" style="animation-delay:${Math.min(i, 8) * 40}ms">
+    return separation + `<article class="salon ${s.barbier ? "barbier" : ""} ${s.doute ? "doute" : ""}" style="animation-delay:${Math.min(i, 8) * 40}ms">
       <div class="tete">
         <div><h3>${echapper(s.nom)}</h3>
           <div class="meta"><span class="pastille dist">${distanceCourt(s.d)}</span>
