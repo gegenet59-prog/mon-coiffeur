@@ -37,14 +37,7 @@ jobs:
       - name: Reprendre la base existante (branche donnees)
         run: git clone --depth 1 --branch donnees "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" data || mkdir -p data
       - name: Télécharger les salons OpenStreetMap de France
-        run: |
-          REQ='[out:json][timeout:900];area["ISO3166-1"="FR"][admin_level=2]->.fr;nwr["shop"~"^(hairdresser|barber)$"](area.fr);out center tags;'
-          for S in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter; do
-            if curl -sf --max-time 1000 -o /tmp/osm.json --data-urlencode "data=$REQ" "$S" && python3 -c "import json;assert len(json.load(open('/tmp/osm.json'))['elements'])>1000"; then
-              echo "OpenStreetMap téléchargé depuis $S"; break
-            fi
-            echo "Échec sur $S"; echo '{"elements":[]}' > /tmp/osm.json
-          done
+        run: python3 scripts/osm.py /tmp/osm.json
       - name: Fusion de départ (gros fichier SIRENE, une seule fois)
         if: inputs.mode == 'initial' || hashFiles('data/sirene.json') == ''
         run: |
