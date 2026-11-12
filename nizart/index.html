@@ -104,7 +104,16 @@ textarea{min-height:70px;resize:vertical}
 .fs-top button{padding:12px 20px;font-size:16px}
 .fs-stage{flex:1;min-height:0;position:relative;touch-action:none}
 .fs-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-.fs-tip{margin:0;padding:6px 14px;font-size:12px;color:var(--mut);text-align:center}
+.fs-turn{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid var(--or);color:var(--or2);font-size:13px;padding:5px 12px;border-radius:99px;pointer-events:none}
+#fs .sl{grid-template-columns:62px 1fr 40px}
+#fs .row button{padding:8px 6px;font-size:13px}
+@media (orientation:landscape) and (max-height:560px){
+  .fs{display:grid;grid-template-columns:1fr 250px;grid-template-rows:auto 1fr}
+  .fs-top{grid-column:1/3;padding-top:6px;padding-bottom:6px}
+  .fs-stage{grid-row:2;grid-column:1}
+  .fs-ctrl{grid-row:2;grid-column:2;overflow:auto;padding:8px}
+  .fs-ctrl .row{flex-wrap:wrap}.fs-ctrl .row button{flex:1 1 45%}
+}
 .fs-ctrl{padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .fs-ctrl .panel{max-width:640px;margin:0 auto;padding:10px 12px}
 .fs-ctrl .sl{margin:6px 0}
@@ -263,9 +272,8 @@ textarea{min-height:70px;resize:vertical}
 </div>
 
 <div class="fs hidden" id="fs">
-  <div class="fs-top"><div><small>Cadrez votre photo</small><b id="fsTitle"></b></div><button class="gold" id="fsOk">✓ Valider</button></div>
-  <div class="fs-stage" id="fsStage"><canvas id="fcv"></canvas></div>
-  <p class="fs-tip">1 doigt : déplacer · 2 doigts : agrandir, réduire, tourner. Les pointillés = zone imprimée.</p>
+  <div class="fs-top"><div><small>1 doigt : déplacer · 2 doigts : zoomer</small><b id="fsTitle"></b></div><button class="gold" id="fsOk">✓ Valider</button></div>
+  <div class="fs-stage" id="fsStage"><canvas id="fcv"></canvas><div class="fs-turn hidden" id="fsTurn">↻ Tournez votre téléphone</div></div>
   <div class="fs-ctrl" id="fsCtrl"></div>
 </div>
 <div class="bar hidden" id="bar"><div class="in">
@@ -615,24 +623,30 @@ function openFS(){if(!st.img){$('file').click();return;}
   $('fsTitle').textContent=sup.nom;$('fsCtrl').appendChild($('ctrl'));requestAnimationFrame(drawFS);}
 function closeFS(){fsOpen=false;fs.classList.add('hidden');document.body.style.overflow='';$('ctrlHome').appendChild($('ctrl'));draw();}
 $('fsOk').onclick=closeFS;$('bBig').onclick=openFS;
+let FM=new DOMMatrix(),fsRot=false;
 function drawFS(){
   if(!fsOpen)return;
   const box=$('fsStage').getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
   const W=Math.max(50,box.width),H=Math.max(50,box.height);
   if(fcv.width!==Math.round(W*dpr)||fcv.height!==Math.round(H*dpr)){fcv.width=Math.round(W*dpr);fcv.height=Math.round(H*dpr);}
-  const z=getDraw(sup).z,m=0.12;
-  const k=Math.min(W/(z.w*(1+2*m)),H/(z.h*(1+2*m)));
-  FT={k,tx:W/2-(z.x+z.w/2)*k,ty:H/2-(z.y+z.h/2)*k};
+  const z=getDraw(sup).z,m=0.04;
+  // téléphone en hauteur + zone en largeur (mug…) : on tourne l'image d'un quart de tour pour qu'elle remplisse l'écran
+  fsRot=H>W*1.1 && z.w/z.h>1.3;
+  const Wf=fsRot?H:W,Hf=fsRot?W:H;
+  const k=Math.min(Wf/(z.w*(1+2*m)),Hf/(z.h*(1+2*m)));
+  FM=new DOMMatrix().translate(W/2,H/2).rotate(fsRot?90:0).scale(k).translate(-(z.x+z.w/2),-(z.y+z.h/2));
+  $('fsTurn').classList.toggle('hidden',!fsRot);
   fc.setTransform(1,0,0,1,0,0);fc.fillStyle='#0b0a0d';fc.fillRect(0,0,fcv.width,fcv.height);
-  fc.setTransform(k*dpr,0,0,k*dpr,FT.tx*dpr,FT.ty*dpr);
+  fc.setTransform(new DOMMatrix().scale(dpr).multiply(FM));
   render(fc,sup,st,true,drawFS);
   // la partie de la photo qui dépasse (pas imprimée) en transparence, pour bien cadrer
   fc.save();fc.beginPath();fc.rect(-5000,-5000,11000,11000);fc.rect(z.x,z.y,z.w,z.h);fc.clip('evenodd');
   fc.globalAlpha=.28;drawUserImage(fc,st,z);fc.restore();
-  fc.save();fc.setLineDash([10/k*1.2,8/k*1.2]);fc.strokeStyle='#f0d58c';fc.lineWidth=2.5/k;fc.strokeRect(z.x,z.y,z.w,z.h);fc.restore();
+  fc.save();fc.setLineDash([12/k,9/k]);fc.strokeStyle='#f0d58c';fc.lineWidth=2.5/k;fc.strokeRect(z.x,z.y,z.w,z.h);fc.restore();
 }
-gestures(fcv,e=>{const r=fcv.getBoundingClientRect();return{x:(e.clientX-r.left-FT.tx)/FT.k,y:(e.clientY-r.top-FT.ty)/FT.k};});
+gestures(fcv,e=>{const r=fcv.getBoundingClientRect();const p=FM.inverse().transformPoint(new DOMPoint(e.clientX-r.left,e.clientY-r.top));return{x:p.x,y:p.y};});
 window.addEventListener('resize',()=>{if(fsOpen)drawFS();});
+window.addEventListener('orientationchange',()=>setTimeout(()=>{if(fsOpen)drawFS();},300));
 
 /* ============ Étape 3 : récap + commande ============ */
 let step='ed';
