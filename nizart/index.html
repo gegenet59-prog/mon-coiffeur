@@ -109,7 +109,7 @@ textarea{min-height:70px;resize:vertical}
 </div></header>
 
 <div class="wrap">
-<div class="demo-banner">Version de démonstration : articles, prix et dimensions d'exemple. Rien n'est envoyé.</div>
+<div class="demo-banner">Version de démonstration : articles et caractéristiques réels (fournisseurs du marché), prix de vente d'exemple. Rien n'est envoyé.</div>
 
 <!-- ===== Étape 1 : catalogue ===== -->
 <section id="v-cat">
@@ -128,11 +128,11 @@ textarea{min-height:70px;resize:vertical}
   <div class="ed">
     <div>
       <div class="stage" id="stage"><canvas id="scene" width="1000" height="750"></canvas><div class="hint" id="hint">Ajoutez votre photo avec le bouton ci-dessous 👇</div></div>
+      <p class="spec" style="margin-top:8px">Glissez la photo avec le doigt pour la déplacer, pincez pour zoomer.</p>
       <div class="row" style="margin-top:10px">
         <button class="gold" id="pickPhoto">📷 Choisir ma photo</button><input type="file" id="file" accept="image/*" class="vh">
         <button id="btnDemo">Photo d'exemple</button>
       </div>
-      <p class="spec" style="margin-top:8px">Glissez la photo avec le doigt pour la déplacer, pincez pour zoomer.</p>
     </div>
     <div>
       <div class="panel">
@@ -224,6 +224,7 @@ textarea{min-height:70px;resize:vertical}
         <label class="f"><span>Largeur imprimable (cm)</span><input type="number" id="fW" min="1" step="0.1"></label>
         <label class="f"><span>Hauteur imprimable (cm)</span><input type="number" id="fH" min="1" step="0.1"></label>
       </div>
+      <label class="f"><span>Référence / fournisseur</span><input type="text" id="fRef" placeholder="Ex : Stanley/Stella STTU169"></label>
       <label class="f"><span>Description / caractéristiques techniques</span><textarea id="fDesc" placeholder="Matière, contenance, entretien, délai…"></textarea></label>
       <label class="f"><span>Rendu de la photo sur l'article</span>
         <select id="fBlend"><option value="normal">Normal (objet lisse : plexi, mug, carte…)</option><option value="multiply">Effet tissu (la texture de l'article reste visible)</option></select></label>
@@ -407,20 +408,20 @@ const ZONES={
 
 /* ============ Catalogue de démo ============ */
 const DEMO=[
- {id:'mug',dessin:'mug',nom:'Mug céramique 330 ml',cat:'Vaisselle',prix:'14,90 €',w:20,h:8.5,tech:'Sublimation',desc:'Céramique blanche brillante, passe au lave-vaisselle. Impression tout autour de l\'anse à l\'anse.'},
- {id:'tasse',dessin:'tasse',nom:'Tasse expresso + soucoupe',cat:'Vaisselle',prix:'9,90 €',w:10,h:4.5,tech:'Sublimation',desc:'Porcelaine 90 ml avec soucoupe. Idéale en cadeau duo.'},
- {id:'gourde',dessin:'gourde',nom:'Gourde inox 500 ml',cat:'Vaisselle',prix:'22,90 €',w:7,h:18,tech:'Impression UV',desc:'Double paroi isotherme : 12 h chaud, 24 h froid. Impression face avant.'},
- {id:'tshirt',dessin:'tshirt',nom:'T-shirt coton bio',cat:'Textile',prix:'19,90 €',w:28,h:35,tech:'Presse textile (DTF)',desc:'100 % coton bio 180 g/m², tailles S à XXL. Lavage 30 °C à l\'envers.',blend:'multiply'},
- {id:'totebag',dessin:'totebag',nom:'Tote bag 38 × 42 cm',cat:'Textile',prix:'12,90 €',w:26,h:30,tech:'Presse textile (DTF)',desc:'Toile coton naturel 140 g/m², anses longues.',blend:'multiply'},
- {id:'coussin',dessin:'coussin',nom:'Coussin 40 × 40 cm',cat:'Déco',prix:'24,90 €',w:40,h:40,tech:'Sublimation',desc:'Housse polyester toucher doux + garnissage. Housse lavable.'},
- {id:'plexi',dessin:'plexi',nom:'Plexi 30 × 20 cm',cat:'Déco',prix:'39,00 €',w:30,h:20,tech:'Impression UV',desc:'Plexiglas 5 mm, rendu brillant effet verre, fixation murale par entretoises inox.'},
- {id:'toile',dessin:'toile',nom:'Toile 60 × 40 cm',cat:'Déco',prix:'59,00 €',w:60,h:40,tech:'Impression UV',desc:'Toile canevas tendue sur châssis bois 2 cm, prête à accrocher.'},
- {id:'mur',dessin:'mur',nom:'Mur XXL 300 × 200 cm',cat:'Déco',prix:'Sur devis',w:300,h:200,tech:'Impression UV murale',desc:'Impression directe sur votre mur, en boutique ou chez vous. Devis selon surface.'},
- {id:'carte',dessin:'carte',nom:'Cartes de visite (lot de 100)',cat:'Papeterie',prix:'29,00 €',w:8.5,h:5.5,tech:'Impression UV',desc:'Carton 350 g, format 85 × 55 mm, recto. Délai 48 h.'}
+ {id:'mug',dessin:'mug',nom:'Mug sublimation 325 ml',ref:'Brildor · mug intérieur coloré 11 oz (réf. 949193)',cat:'Vaisselle',prix:'14,90 €',w:23.5,h:9.3,tech:'Sublimation',desc:'Céramique, Ø 8,2 cm, hauteur 9,7 cm, 357 g. Intérieur et anse de couleur au choix (jaune, bleu, orange, noir, rouge, rose, vert…).'},
+ {id:'tasse',dessin:'tasse',nom:'Tasse expresso + soucoupe',ref:'ADC Concept · tasse expresso céramique traitée polyester',cat:'Vaisselle',prix:'9,90 €',w:15,h:4,tech:'Sublimation',desc:'Tasse H 6 cm, Ø 5,6 cm, soucoupe Ø 11 cm. Compatible machines à café nouvelle génération.'},
+ {id:'gourde',dessin:'gourde',nom:'Gourde isotherme 500 ml',ref:'Omnipub · thermos inox double paroi, couvercle bambou, spécial sublimation',cat:'Vaisselle',prix:'22,90 €',w:7,h:18,tech:'Sublimation',desc:'Acier inoxydable double paroi, couvercle en bambou, blanc, 336 g.'},
+ {id:'tshirt',dessin:'tshirt',nom:'T-shirt Creator 2.0 coton bio',ref:'Stanley/Stella STTU169',cat:'Textile',prix:'24,90 €',w:28,h:35,tech:'Presse textile (DTF)',desc:'100 % coton bio peigné ring-spun, 180 g/m², coupe unisexe. Labels GOTS et OEKO-TEX. Lavage 30 °C, pas de sèche-linge.',blend:'multiply'},
+ {id:'totebag',dessin:'totebag',nom:'Tote bag « Bag for Life »',ref:'Westford Mill W101',cat:'Textile',prix:'12,90 €',w:33,h:36,tech:'Presse textile (DTF)',desc:'100 % coton 140 g/m², 38 × 42 cm, 10 litres, anses de 67 cm (main ou épaule).',blend:'multiply'},
+ {id:'coussin',dessin:'coussin',nom:'Coussin 40 × 40 cm',ref:'Housse polyester blanche + intérieur 40 × 40',cat:'Déco',prix:'24,90 €',w:40,h:40,tech:'Sublimation',desc:'Housse 100 % polyester avec fermeture éclair, lavable en machine. Garnissage 100 % polyester.'},
+ {id:'plexi',dessin:'plexi',nom:'Photo sur plexiglas 30 × 20 cm',ref:'Plexiglas 5 mm, impression UV directe',cat:'Déco',prix:'39,00 €',w:30,h:20,tech:'Impression UV',desc:'Plexiglas 5 mm brillant, encres résistantes aux UV (les couleurs ne passent pas). Fixation murale par entretoises.'},
+ {id:'toile',dessin:'toile',nom:'Toile sur châssis 60 × 40 cm',ref:'Châssis entoilé coton « Simply » 40 × 60',cat:'Déco',prix:'59,00 €',w:60,h:40,tech:'Impression UV',desc:'Toile coton tendue sur châssis bois de 1,8 cm, agrafée au dos, 560 g. Prête à accrocher.'},
+ {id:'mur',dessin:'mur',nom:'Mur XXL 300 × 200 cm',ref:'Impression murale directe',cat:'Déco',prix:'Sur devis',w:300,h:200,tech:'Impression UV murale',desc:'Impression directe sur votre mur, en boutique ou chez vous. Devis selon la surface.'},
+ {id:'carte',dessin:'carte',nom:'Cartes de visite (lot de 100)',ref:'MOO · carte de visite Classique',cat:'Papeterie',prix:'44,40 €',w:8.4,h:5.5,tech:'Impression couleur recto-verso',desc:'Papier 350 g/m², format 84 × 55 mm, finition mate ou brillante au choix.'}
 ];
 DEMO.forEach(d=>{d.demo=true;d.visible=true;d.type='dessin';d.blend=d.blend||'normal';});
 
-const KEY='nizart-catalogue-v1', KEY_O='nizart-commandes-v1', CODE='1234';
+const KEY='nizart-catalogue-v2', KEY_O='nizart-commandes-v1', CODE='1234';
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){toast('Mémoire du navigateur pleine : photo trop lourde ?');return false;}}
 let CAT=load(KEY,null)||JSON.parse(JSON.stringify(DEMO));
@@ -525,7 +526,7 @@ function openEditor(item){
   $('edSub').textContent=`Zone imprimable : ${fmt(item.w)} × ${fmt(item.h)} cm`;
   $('edSpec').innerHTML='';
   const add=(k,v)=>{if(!v)return;const p=document.createElement('div');p.innerHTML='<b></b> ';p.querySelector('b').textContent=k;p.append(v);$('edSpec').appendChild(p);};
-  add('Technique :',item.tech);add('Zone :',`${fmt(item.w)} × ${fmt(item.h)} cm`);add('',item.desc);
+  add('Référence :',item.ref);add('Technique :',item.tech);add('Zone :',`${fmt(item.w)} × ${fmt(item.h)} cm`);add('',item.desc);
   $('edPrice').textContent=item.prix;
   st={img:st.img,scale:1,rot:0,ox:0,oy:0};
   syncUI();show('v-ed');draw();
@@ -559,7 +560,6 @@ function setImg(im){st={img:im,scale:1,rot:0,ox:0,oy:0};update();}
 function readFile(f){const u=URL.createObjectURL(f);const im=new Image();im.onload=()=>setImg(im);im.onerror=()=>toast('Format non lu : essayez une photo JPG ou PNG');im.src=u;}
 $('file').onchange=e=>{const f=e.target.files[0];if(f)readFile(f);e.target.value='';};
 $('pickPhoto').onclick=()=>$('file').click();
-$('pickProd')&&0;
 $('btnDemo').onclick=()=>{if(demoImg.complete)setImg(demoImg);else demoImg.onload=()=>setImg(demoImg);};
 $('rScale').oninput=e=>{st.scale=e.target.value/100;update();};
 $('rRot').oninput=e=>{st.rot=+e.target.value;update();};
@@ -593,7 +593,7 @@ $('barNext').onclick=()=>{
   if(step==='ed'){
     render(sc,sup,st,false);$('recImg').src=scene.toDataURL('image/jpeg',.88);draw();
     $('recSpec').innerHTML='';
-    [['Article',sup.nom],['Quantité',qty],['Zone imprimée',`${fmt(sup.w)} × ${fmt(sup.h)} cm`],['Technique',sup.tech],['Total',total()]].forEach(([k,v])=>{const d=document.createElement('div');d.innerHTML='<b></b> ';d.querySelector('b').textContent=k+' :';d.append(String(v||''));$('recSpec').appendChild(d);});
+    [['Article',sup.nom],['Référence',sup.ref],['Quantité',qty],['Zone imprimée',`${fmt(sup.w)} × ${fmt(sup.h)} cm`],['Technique',sup.tech],['Total',total()]].forEach(([k,v])=>{const d=document.createElement('div');d.innerHTML='<b></b> ';d.querySelector('b').textContent=k+' :';d.append(String(v||''));$('recSpec').appendChild(d);});
     step='rec';show('v-rec');$('barNext').textContent='Envoyer à Nizar';$('barNext').disabled=false;
     $('barTot').innerHTML=`${qty} × ${escapeHtml(sup.nom)}<br><b>${total()}</b>`;
   }else{
@@ -689,7 +689,7 @@ function openForm(item){
   $('fTitle').textContent=item?'Modifier l\'article':'Nouvel article';
   $('fNom').value=item?item.nom:'';$('fCat').value=item?item.cat||'':'';$('fPrix').value=item?item.prix:'';
   $('fTech').value=item?item.tech||'':'';$('fW').value=item?item.w:'';$('fH').value=item?item.h:'';
-  $('fDesc').value=item?item.desc||'':'';$('fBlend').value=item?item.blend||'normal':'normal';$('fVis').checked=item?item.visible:true;
+  $('fDesc').value=item?item.desc||'':'';$('fRef').value=item?item.ref||'':'';$('fBlend').value=item?item.blend||'normal':'normal';$('fVis').checked=item?item.visible:true;
   $('cats').innerHTML='';[...new Set(CAT.map(i=>i.cat).filter(Boolean))].forEach(c=>{const o=document.createElement('option');o.value=c;$('cats').appendChild(o);});
   if(item&&item.type==='photo'){fImg=new Image();fImg.onload=drawZone;fImg.src=item.photo;}
   show('v-form');drawZone();
@@ -742,7 +742,7 @@ $('fSave').onclick=()=>{
   const isPhoto=!!fImg;
   if(!isPhoto&&!(edit&&edit.type==='dessin')){toast('Ajoutez une photo de l\'article');return;}
   if(isPhoto&&!fZone){autoZone();}
-  const data={nom,cat:$('fCat').value.trim()||'Autres',prix:$('fPrix').value.trim()||'Sur devis',tech:$('fTech').value.trim(),w,h,desc:$('fDesc').value.trim(),blend:$('fBlend').value,visible:$('fVis').checked};
+  const data={nom,cat:$('fCat').value.trim()||'Autres',prix:$('fPrix').value.trim()||'Sur devis',tech:$('fTech').value.trim(),w,h,desc:$('fDesc').value.trim(),ref:$('fRef').value.trim(),blend:$('fBlend').value,visible:$('fVis').checked};
   if(isPhoto){data.type='photo';data.photo=fImg.src;data.zone=fZone;delete data.dessin;}
   const before=JSON.stringify(CAT);
   if(edit){Object.assign(edit,data);if(isPhoto){delete edit.dessin;edit.demo=false;}}
