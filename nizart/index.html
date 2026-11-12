@@ -98,6 +98,17 @@ textarea{min-height:70px;resize:vertical}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:360px;width:100%}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;border:1px solid var(--or);color:var(--txt);padding:10px 16px;border-radius:12px;z-index:60;font-size:14px;transition:.3s}
+.fs{position:fixed;inset:0;z-index:40;background:#0b0a0d;display:flex;flex-direction:column}
+.fs-top{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+.fs-top>div{flex:1;min-width:0}.fs-top small{display:block;color:var(--or);font-size:12px}.fs-top b{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-top button{padding:12px 20px;font-size:16px}
+.fs-stage{flex:1;min-height:0;position:relative;touch-action:none}
+.fs-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.fs-tip{margin:0;padding:6px 14px;font-size:12px;color:var(--mut);text-align:center}
+.fs-ctrl{padding:0 12px calc(12px + env(safe-area-inset-bottom))}
+.fs-ctrl .panel{max-width:640px;margin:0 auto;padding:10px 12px}
+.fs-ctrl .sl{margin:6px 0}
+.fs-ctrl .quality{margin-top:6px;padding:6px 10px}
 .demo-banner{background:linear-gradient(90deg,#2a2013,#1a1610);border:1px solid #4d3d1e;color:var(--or2);font-size:12.5px;border-radius:10px;padding:7px 11px;margin-top:12px}
 </style>
 </head>
@@ -133,10 +144,12 @@ textarea{min-height:70px;resize:vertical}
         <button class="gold" id="pickPhoto">📷 Choisir ma photo</button><input type="file" id="file" accept="image/*" class="vh">
         <button id="btnDemo">Photo d'exemple</button>
       </div>
+      <div class="row" style="margin-top:8px"><button id="bBig">⤢ Cadrer en plein écran</button>
+      </div>
     </div>
     <div>
-      <div class="panel">
-        <div class="sl"><span>Taille</span><input type="range" id="rScale" min="30" max="400" value="100"><span id="vScale">100%</span></div>
+      <div id="ctrlHome"><div class="panel" id="ctrl">
+        <div class="sl"><span>Taille</span><input type="range" id="rScale" min="20" max="500" value="100"><span id="vScale">100%</span></div>
         <div class="sl"><span>Rotation</span><input type="range" id="rRot" min="-180" max="180" value="0"><span id="vRot">0°</span></div>
         <div class="row">
           <button class="small" id="bFill">Remplir</button>
@@ -145,7 +158,7 @@ textarea{min-height:70px;resize:vertical}
           <button class="small" id="bRot90">↻ 90°</button>
         </div>
         <div id="quality" class="quality hidden"></div>
-      </div>
+      </div></div>
       <div class="panel">
         <p class="spec" id="edSpec"></p>
         <div class="row" style="align-items:center;margin-top:10px">
@@ -249,6 +262,12 @@ textarea{min-height:70px;resize:vertical}
 </section>
 </div>
 
+<div class="fs hidden" id="fs">
+  <div class="fs-top"><div><small>Cadrez votre photo</small><b id="fsTitle"></b></div><button class="gold" id="fsOk">✓ Valider</button></div>
+  <div class="fs-stage" id="fsStage"><canvas id="fcv"></canvas></div>
+  <p class="fs-tip">1 doigt : déplacer · 2 doigts : agrandir, réduire, tourner. Les pointillés = zone imprimée.</p>
+  <div class="fs-ctrl" id="fsCtrl"></div>
+</div>
 <div class="bar hidden" id="bar"><div class="in">
   <button id="barBack">←</button>
   <div class="tot" id="barTot"></div>
@@ -544,7 +563,7 @@ function syncUI(){
   $('rRot').value=Math.round(st.rot);$('vRot').textContent=Math.round(st.rot)+'°';
   quality();
 }
-function update(){syncUI();draw();}
+function update(){syncUI();draw();if(fsOpen)drawFS();}
 function quality(){
   const q=$('quality');if(!st.img||!sup){q.classList.add('hidden');return;}
   const iw=st.img.naturalWidth||st.img.width, ih=st.img.naturalHeight||st.img.height, z=zoneNow||getDraw(sup).z;
@@ -556,7 +575,7 @@ function quality(){
   else if(dpi>=okay){q.className='quality q-warn';q.innerHTML='<b>⚠ Qualité correcte</b><br>'+dpi+' DPI : ça passe, mais évitez de zoomer davantage';}
   else{q.className='quality q-bad';q.innerHTML='<b>✖ Photo trop petite</b><br>'+dpi+' DPI : le tirage sera flou. Prenez une photo plus grande.';}
 }
-function setImg(im){st={img:im,scale:1,rot:0,ox:0,oy:0};update();}
+function setImg(im){st={img:im,scale:1,rot:0,ox:0,oy:0};update();openFS();}
 function readFile(f){const u=URL.createObjectURL(f);const im=new Image();im.onload=()=>setImg(im);im.onerror=()=>toast('Format non lu : essayez une photo JPG ou PNG');im.src=u;}
 $('file').onchange=e=>{const f=e.target.files[0];if(f)readFile(f);e.target.value='';};
 $('pickPhoto').onclick=()=>$('file').click();
@@ -572,19 +591,48 @@ $('qm').onclick=()=>{qty=Math.max(1,qty-1);$('qv').textContent=qty;draw();};
 $('qp').onclick=()=>{qty++;$('qv').textContent=qty;draw();};
 
 ['dragover','drop'].forEach(t=>$('stage').addEventListener(t,e=>{e.preventDefault();if(t==='drop'){const f=e.dataTransfer.files[0];if(f)readFile(f);}}));
-/* glisser / pincer */
-const pts=new Map();let dragging=false,last=null;
-function toScene(e){const r=scene.getBoundingClientRect();return{x:(e.clientX-r.left)*1000/r.width,y:(e.clientY-r.top)*750/r.height};}
-function pair(){const [a,b]=[...pts.values()];return{d:Math.hypot(a.x-b.x,a.y-b.y),a:Math.atan2(b.y-a.y,b.x-a.x)};}
-scene.addEventListener('pointerdown',e=>{if(!st.img)return;scene.setPointerCapture(e.pointerId);pts.set(e.pointerId,toScene(e));dragging=true;last=pts.size===2?pair():null;draw();});
-scene.addEventListener('pointermove',e=>{
-  if(!pts.has(e.pointerId))return;const p=toScene(e),prev=pts.get(e.pointerId);pts.set(e.pointerId,p);
-  if(pts.size===1){const z=zoneNow;st.ox+=(p.x-prev.x)/z.w;st.oy+=(p.y-prev.y)/z.h;}
-  else if(pts.size===2&&last){const n=pair();st.scale=Math.min(4,Math.max(.3,st.scale*n.d/last.d));st.rot+=(n.a-last.a)*180/Math.PI;st.rot=((st.rot+540)%360)-180;last=n;}
-  update();});
-function up(e){pts.delete(e.pointerId);last=pts.size===2?pair():null;if(!pts.size){dragging=false;draw();}}
-scene.addEventListener('pointerup',up);scene.addEventListener('pointercancel',up);
-scene.addEventListener('wheel',e=>{if(!st.img)return;e.preventDefault();st.scale=Math.min(4,Math.max(.3,st.scale*(e.deltaY<0?1.06:1/1.06)));update();},{passive:false});
+/* glisser / pincer (sur l'aperçu normal ET sur le cadrage plein écran) */
+let dragging=false;
+function pairOf(pts){const [a,b]=[...pts.values()];return{d:Math.hypot(a.x-b.x,a.y-b.y),a:Math.atan2(b.y-a.y,b.x-a.x)};}
+function gestures(cv,toS){
+  const pts=new Map();let last=null;
+  cv.addEventListener('pointerdown',e=>{if(!st.img)return;cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,toS(e));dragging=true;last=pts.size===2?pairOf(pts):null;update();});
+  cv.addEventListener('pointermove',e=>{
+    if(!pts.has(e.pointerId))return;const p=toS(e),prev=pts.get(e.pointerId);pts.set(e.pointerId,p);
+    if(pts.size===1){const z=zoneNow;st.ox+=(p.x-prev.x)/z.w;st.oy+=(p.y-prev.y)/z.h;}
+    else if(pts.size===2&&last){const n=pairOf(pts);st.scale=Math.min(5,Math.max(.2,st.scale*n.d/last.d));st.rot+=(n.a-last.a)*180/Math.PI;st.rot=((st.rot+540)%360)-180;last=n;}
+    update();});
+  const up=e=>{pts.delete(e.pointerId);last=pts.size===2?pairOf(pts):null;if(!pts.size){dragging=false;update();}};
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+  cv.addEventListener('wheel',e=>{if(!st.img)return;e.preventDefault();st.scale=Math.min(5,Math.max(.2,st.scale*(e.deltaY<0?1.06:1/1.06)));update();},{passive:false});
+}
+gestures(scene,e=>{const r=scene.getBoundingClientRect();return{x:(e.clientX-r.left)*1000/r.width,y:(e.clientY-r.top)*750/r.height};});
+
+/* ============ Cadrage plein écran ============ */
+const fs=$('fs'),fcv=$('fcv'),fc=fcv.getContext('2d');let fsOpen=false,FT={k:1,tx:0,ty:0};
+function openFS(){if(!st.img){$('file').click();return;}
+  fsOpen=true;fs.classList.remove('hidden');document.body.style.overflow='hidden';
+  $('fsTitle').textContent=sup.nom;$('fsCtrl').appendChild($('ctrl'));requestAnimationFrame(drawFS);}
+function closeFS(){fsOpen=false;fs.classList.add('hidden');document.body.style.overflow='';$('ctrlHome').appendChild($('ctrl'));draw();}
+$('fsOk').onclick=closeFS;$('bBig').onclick=openFS;
+function drawFS(){
+  if(!fsOpen)return;
+  const box=$('fsStage').getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=Math.max(50,box.width),H=Math.max(50,box.height);
+  if(fcv.width!==Math.round(W*dpr)||fcv.height!==Math.round(H*dpr)){fcv.width=Math.round(W*dpr);fcv.height=Math.round(H*dpr);}
+  const z=getDraw(sup).z,m=0.12;
+  const k=Math.min(W/(z.w*(1+2*m)),H/(z.h*(1+2*m)));
+  FT={k,tx:W/2-(z.x+z.w/2)*k,ty:H/2-(z.y+z.h/2)*k};
+  fc.setTransform(1,0,0,1,0,0);fc.fillStyle='#0b0a0d';fc.fillRect(0,0,fcv.width,fcv.height);
+  fc.setTransform(k*dpr,0,0,k*dpr,FT.tx*dpr,FT.ty*dpr);
+  render(fc,sup,st,true,drawFS);
+  // la partie de la photo qui dépasse (pas imprimée) en transparence, pour bien cadrer
+  fc.save();fc.beginPath();fc.rect(-5000,-5000,11000,11000);fc.rect(z.x,z.y,z.w,z.h);fc.clip('evenodd');
+  fc.globalAlpha=.28;drawUserImage(fc,st,z);fc.restore();
+  fc.save();fc.setLineDash([10/k*1.2,8/k*1.2]);fc.strokeStyle='#f0d58c';fc.lineWidth=2.5/k;fc.strokeRect(z.x,z.y,z.w,z.h);fc.restore();
+}
+gestures(fcv,e=>{const r=fcv.getBoundingClientRect();return{x:(e.clientX-r.left-FT.tx)/FT.k,y:(e.clientY-r.top-FT.ty)/FT.k};});
+window.addEventListener('resize',()=>{if(fsOpen)drawFS();});
 
 /* ============ Étape 3 : récap + commande ============ */
 let step='ed';
