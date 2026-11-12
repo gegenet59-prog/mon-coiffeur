@@ -104,6 +104,11 @@ textarea{min-height:70px;resize:vertical}
 .fs-top button{padding:12px 20px;font-size:16px}
 .fs-stage{flex:1;min-height:0;position:relative;touch-action:none}
 .fs-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#fs .fs-stage{position:absolute;inset:0}
+#fs .fs-top{position:absolute;left:0;right:0;top:0;z-index:3;border:none;background:linear-gradient(rgba(11,10,13,.85),rgba(11,10,13,0))}
+.fs-gear{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:3;border-radius:99px;padding:10px 18px;background:rgba(23,21,27,.9);border-color:var(--or);color:var(--or2)}
+#fs .fs-ctrl{position:absolute;left:0;right:0;bottom:0;z-index:4;max-height:60%;overflow:auto;padding:8px 10px calc(10px + env(safe-area-inset-bottom));background:rgba(11,10,13,.92);border-top:1px solid var(--line);border-radius:18px 18px 0 0}
+#fs .fs-ctrl::before{content:'';display:block;width:40px;height:4px;border-radius:2px;background:#555;margin:0 auto 8px}
 .fs-arrow{position:absolute;top:50%;transform:translateY(-50%);left:6px;width:44px;height:64px;padding:0;border-radius:14px;background:rgba(0,0,0,.55);border:1px solid var(--or);color:var(--or2);font-size:20px;z-index:2}
 .fs-arrow.r{left:auto;right:6px}
 .fs-mini{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:rgba(0,0,0,.65);border:1px solid var(--line);border-radius:12px;padding:5px 6px 3px;text-align:center;z-index:2}
@@ -114,18 +119,7 @@ textarea{min-height:70px;resize:vertical}
 .fs-turn{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid var(--or);color:var(--or2);font-size:13px;padding:5px 12px;border-radius:99px;pointer-events:none}
 #fs .sl{grid-template-columns:62px 1fr 40px}
 #fs .row button{padding:8px 6px;font-size:13px}
-@media (orientation:landscape) and (max-height:560px){
-  .fs{display:grid;grid-template-columns:1fr 210px;grid-template-rows:auto 1fr}
-  .fs-top{grid-column:2;grid-row:1;flex-direction:column;align-items:stretch;gap:6px;padding:8px;border:none}
-  .fs-top small{display:none}.fs-top b{font-size:13px}
-  .fs-top button{padding:10px;font-size:15px}
-  .fs-stage{grid-row:1/3;grid-column:1}
-  .fs-ctrl{grid-row:2;grid-column:2;overflow:auto;padding:0 8px 8px}
-  .fs-ctrl .panel{padding:6px 8px}
-  #fs .sl{grid-template-columns:48px 1fr 34px;font-size:11px;margin:2px 0}
-  .fs-ctrl .row{flex-wrap:wrap;gap:4px}.fs-ctrl .row button{flex:1 1 45%;padding:6px 4px;font-size:12px}
-  .fs-ctrl .quality{font-size:11px;padding:4px 8px}
-}
+
 .fs-ctrl{padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .fs-ctrl .panel{max-width:640px;margin:0 auto;padding:10px 12px}
 .fs-ctrl .sl{margin:6px 0}
@@ -300,7 +294,8 @@ textarea{min-height:70px;resize:vertical}
   <div class="fs-top"><div><small>1 doigt : déplacer · 2 doigts : zoomer</small><b id="fsTitle"></b></div><button class="gold" id="fsOk">✓ Valider</button></div>
   <div class="fs-stage" id="fsStage"><canvas id="fcv"></canvas><button class="fs-arrow hidden" id="fsL" aria-label="Tourner à gauche">◀</button><button class="fs-arrow r hidden" id="fsR" aria-label="Voir à droite">▶</button>
     <div class="fs-mini hidden" id="fminiBox"><canvas id="fmini" width="300" height="90"></canvas><span>Touchez pour voir le tour du mug</span></div></div>
-  <div class="fs-ctrl" id="fsCtrl"></div>
+  <button class="fs-gear" id="fsGear">⚙ Réglages</button>
+  <div class="fs-ctrl hidden" id="fsCtrl"></div>
 </div>
 <div class="bar hidden" id="bar"><div class="in">
   <button id="barBack">←</button>
@@ -528,7 +523,11 @@ function renderMug(c,item,s,showZone){
   mugHandle(c,g,true,ang);
   return z;
 }
-function mugView(item){const g=mugGeo(item);return{x:g.cx-g.R*1.65,y:g.top-g.ry-6,w:g.R*3.3,h:MUG.Hs+2*g.ry+30};}
+function mugView(item){ // cadre serré sur le mug ; on n'ajoute la place de l'anse que si elle dépasse sur le côté
+  const g=mugGeo(item),sx=Math.abs(Math.sin(Math.PI-mugAngle)),hw=g.R*0.62;
+  const ext=sx*(hw*0.45*sx+Math.max(10,hw*0.75*sx)+g.R*0.1);
+  const half=(g.R+ext)*1.04;
+  return{x:g.cx-half,y:g.top-g.ry-6,w:2*half,h:MUG.Hs+2*g.ry+30};}
 
 
 /* ============ Catalogue de démo ============ */
@@ -723,9 +722,12 @@ gestures(scene,e=>{const r=scene.getBoundingClientRect();return{x:(e.clientX-r.l
 const fs=$('fs'),fcv=$('fcv'),fc=fcv.getContext('2d');let fsOpen=false,FT={k:1,tx:0,ty:0};
 function openFS(){if(!st.img){$('file').click();return;}
   fsOpen=true;viewX=0;fs.classList.remove('hidden');document.body.style.overflow='hidden';
-  $('fsTitle').textContent=sup.nom;$('fsCtrl').appendChild($('ctrl'));requestAnimationFrame(drawFS);}
-function closeFS(){fsOpen=false;fs.classList.add('hidden');document.body.style.overflow='';$('ctrlHome').appendChild($('ctrl'));draw();}
-$('fsOk').onclick=closeFS;$('bBig').onclick=openFS;
+  $('fsTitle').textContent=sup.nom;$('fsCtrl').appendChild($('ctrl'));$('fsCtrl').classList.add('hidden');$('fsGear').textContent='⚙ Réglages';$('fsGear').style.bottom='';
+  try{history.pushState({nizFS:1},'');}catch(e){}requestAnimationFrame(drawFS);}
+function closeFS(fromBack){if(!fsOpen)return;fsOpen=false;if(fromBack!==true){try{if(history.state&&history.state.nizFS)history.back();}catch(e){}}fs.classList.add('hidden');document.body.style.overflow='';$('ctrlHome').appendChild($('ctrl'));draw();}
+$('fsOk').onclick=()=>closeFS();
+window.addEventListener('popstate',()=>{if(fsOpen)closeFS(true);});
+$('fsGear').onclick=()=>{const c=$('fsCtrl');c.classList.toggle('hidden');$('fsGear').textContent=c.classList.contains('hidden')?'⚙ Réglages':'✕ Fermer les réglages';$('fsGear').style.bottom=c.classList.contains('hidden')?'':(c.offsetHeight+10)+'px';};$('bBig').onclick=openFS;
 let FM=new DOMMatrix(),fsFace=false,viewX=0,FVW=1;
 const fmini=$('fmini'),fmc=fmini.getContext('2d');
 function drawFS(){
@@ -733,7 +735,7 @@ function drawFS(){
   const box=$('fsStage').getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
   const W=Math.max(50,box.width),H=Math.max(50,box.height);
   if(fcv.width!==Math.round(W*dpr)||fcv.height!==Math.round(H*dpr)){fcv.width=Math.round(W*dpr);fcv.height=Math.round(H*dpr);}
-  const gd=getDraw(sup),z=gd.mug?gd.view:gd.z,m=0.04;
+  const gd=getDraw(sup),z=gd.mug?gd.view:gd.z,m=gd.mug?0.07:0.08;
   let k=Math.min(W/(z.w*(1+2*m)),H/(z.h*(1+2*m)));
   // Tel debout + zone très large (mug…) : on remplit la HAUTEUR de l'écran et on montre une partie du mug à la fois.
   // Les flèches ◀ ▶ ou la mini-vue en haut font tourner le mug.
