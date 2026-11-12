@@ -108,11 +108,16 @@ textarea{min-height:70px;resize:vertical}
 #fs .sl{grid-template-columns:62px 1fr 40px}
 #fs .row button{padding:8px 6px;font-size:13px}
 @media (orientation:landscape) and (max-height:560px){
-  .fs{display:grid;grid-template-columns:1fr 250px;grid-template-rows:auto 1fr}
-  .fs-top{grid-column:1/3;padding-top:6px;padding-bottom:6px}
-  .fs-stage{grid-row:2;grid-column:1}
-  .fs-ctrl{grid-row:2;grid-column:2;overflow:auto;padding:8px}
-  .fs-ctrl .row{flex-wrap:wrap}.fs-ctrl .row button{flex:1 1 45%}
+  .fs{display:grid;grid-template-columns:1fr 210px;grid-template-rows:auto 1fr}
+  .fs-top{grid-column:2;grid-row:1;flex-direction:column;align-items:stretch;gap:6px;padding:8px;border:none}
+  .fs-top small{display:none}.fs-top b{font-size:13px}
+  .fs-top button{padding:10px;font-size:15px}
+  .fs-stage{grid-row:1/3;grid-column:1}
+  .fs-ctrl{grid-row:2;grid-column:2;overflow:auto;padding:0 8px 8px}
+  .fs-ctrl .panel{padding:6px 8px}
+  #fs .sl{grid-template-columns:48px 1fr 34px;font-size:11px;margin:2px 0}
+  .fs-ctrl .row{flex-wrap:wrap;gap:4px}.fs-ctrl .row button{flex:1 1 45%;padding:6px 4px;font-size:12px}
+  .fs-ctrl .quality{font-size:11px;padding:4px 8px}
 }
 .fs-ctrl{padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .fs-ctrl .panel{max-width:640px;margin:0 auto;padding:10px 12px}
