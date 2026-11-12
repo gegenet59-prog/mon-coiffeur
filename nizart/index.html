@@ -115,6 +115,9 @@ textarea{min-height:70px;resize:vertical}
 .fs-mini canvas{width:150px;height:45px;display:block;cursor:pointer}
 .fs-mini span{font-size:10px;color:var(--mut)}
 #cut .row button.on{background:var(--or);color:#1a1408;border-color:var(--or)}
+.zbtns{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px;align-items:center;z-index:2}
+.zbtns button{width:44px;height:44px;padding:0;border-radius:12px;background:rgba(0,0,0,.6);border-color:var(--or);color:var(--or2);font-size:20px}
+.zbtns span{font-size:11px;color:var(--or2);background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px}
 #ccv{touch-action:none;background:repeating-conic-gradient(#3a3640 0 25%,#26232b 0 50%) 0 0/24px 24px}
 .fs-turn{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid var(--or);color:var(--or2);font-size:13px;padding:5px 12px;border-radius:99px;pointer-events:none}
 #fs .sl{grid-template-columns:62px 1fr 40px}
@@ -281,13 +284,13 @@ textarea{min-height:70px;resize:vertical}
 
 <div class="fs hidden" id="cut" style="z-index:45">
   <div class="fs-top"><div><small>Touchez le fond à enlever</small><b>Détourer la photo</b></div><button class="gold" id="cutOk">✓ Valider</button></div>
-  <div class="fs-stage" id="cutStage"><canvas id="ccv"></canvas></div>
+  <div class="fs-stage" id="cutStage"><canvas id="ccv"></canvas><div class="zbtns"><button id="zIn">＋</button><span id="zLvl">100%</span><button id="zOut">－</button><button id="zFit">⤢</button></div></div>
   <div class="fs-ctrl"><div class="panel">
     <div class="row" style="margin-bottom:6px"><button class="small on" id="mWand">🪄 Baguette</button><button class="small" id="mErase">🧽 Gomme</button><button class="small" id="cClean">🧹 Nettoyer les restes</button></div>
     <div class="sl" id="rowTol"><span>Précision</span><input type="range" id="cTol" min="5" max="120" value="40"><span id="vTol">40</span></div>
     <div class="sl hidden" id="rowBrush"><span>Gomme</span><input type="range" id="cBrush" min="4" max="80" value="24"><span id="vBrush">24</span></div>
     <div class="row"><button class="small" id="cUndo">↶ Annuler</button><button class="small" id="cReset">Tout rétablir</button><button class="small" id="cCancel">Fermer</button></div>
-    <p class="spec" id="cHelp" style="margin:6px 0 0;font-size:12px">Baguette : touchez le fond, la zone de couleur proche disparaît. « Nettoyer les restes » enlève les petits morceaux isolés.</p>
+    <p class="spec" id="cHelp" style="margin:6px 0 0;font-size:12px">Baguette : touchez le fond, la zone de couleur proche disparaît. 2 doigts (ou ＋ －) pour zoomer.</p>
   </div></div>
 </div>
 <div class="fs hidden" id="fs">
@@ -777,31 +780,55 @@ const work=document.createElement('canvas'),wc=work.getContext('2d',{willReadFre
 $('bCut').onclick=()=>{if(!st.img){toast('Ajoutez d\'abord une photo');return;}
   const im=st.img,iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,sc=Math.min(1,1600/Math.max(iw,ih));
   work.width=Math.round(iw*sc);work.height=Math.round(ih*sc);wc.clearRect(0,0,work.width,work.height);wc.drawImage(im,0,0,work.width,work.height);
-  cutSrc=wc.getImageData(0,0,work.width,work.height);cutHist=[];setCutMode('wand');
+  cutSrc=wc.getImageData(0,0,work.width,work.height);cutHist=[];setCutMode('wand');cutView={s:1,tx:0,ty:0};
   $('cut').classList.remove('hidden');document.body.style.overflow='hidden';requestAnimationFrame(drawCut);};
+let cutView={s:1,tx:0,ty:0};
 function drawCut(){const b=$('cutStage').getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);
-  ccv.width=Math.round(b.width*dpr);ccv.height=Math.round(b.height*dpr);ccv.style.width=b.width+'px';ccv.style.height=b.height+'px';
-  const k=Math.min(ccv.width/work.width,ccv.height/work.height)*0.96;cutFit={k,x:(ccv.width-work.width*k)/2,y:(ccv.height-work.height*k)/2,dpr};
-  cc.clearRect(0,0,ccv.width,ccv.height);cc.drawImage(work,cutFit.x,cutFit.y,work.width*k,work.height*k);}
+  const W=Math.round(b.width*dpr),H=Math.round(b.height*dpr);
+  if(ccv.width!==W||ccv.height!==H){ccv.width=W;ccv.height=H;ccv.style.width=b.width+'px';ccv.style.height=b.height+'px';}
+  const k0=Math.min(W/work.width,H/work.height)*0.96,k=k0*cutView.s;
+  cutFit={k,x:(W-work.width*k0)/2*1+cutView.tx-(work.width*(k-k0))/2,y:(H-work.height*k0)/2+cutView.ty-(work.height*(k-k0))/2,dpr};
+  cc.clearRect(0,0,W,H);cc.imageSmoothingEnabled=cutView.s<3;cc.drawImage(work,cutFit.x,cutFit.y,work.width*k,work.height*k);
+  $('zLvl').textContent=Math.round(cutView.s*100)+'%';}
+function zoomCut(f,cx,cy){ // zoom autour d'un point de l'écran (pixels du canvas)
+  const ns=Math.min(12,Math.max(1,cutView.s*f));f=ns/cutView.s;if(cx===undefined){cx=ccv.width/2;cy=ccv.height/2;}
+  // le point sous les doigts reste au même endroit
+  const ix=(cx-cutFit.x)/cutFit.k,iy=(cy-cutFit.y)/cutFit.k;cutView.s=ns;drawCut();
+  cutView.tx+=cx-(cutFit.x+ix*cutFit.k);cutView.ty+=cy-(cutFit.y+iy*cutFit.k);if(ns===1){cutView.tx=cutView.ty=0;}drawCut();}
+$('zIn').onclick=()=>zoomCut(1.6);$('zOut').onclick=()=>zoomCut(1/1.6);$('zFit').onclick=()=>{cutView={s:1,tx:0,ty:0};drawCut();};
 $('cTol').oninput=e=>$('vTol').textContent=e.target.value;
 let cutMode='wand',erasing=false;
 function cutXY(e){const r=ccv.getBoundingClientRect();return{x:Math.floor(((e.clientX-r.left)*cutFit.dpr-cutFit.x)/cutFit.k),y:Math.floor(((e.clientY-r.top)*cutFit.dpr-cutFit.y)/cutFit.k)};}
 function pushHist(){cutHist.push(wc.getImageData(0,0,work.width,work.height));if(cutHist.length>10)cutHist.shift();}
 function setCutMode(m){cutMode=m;$('mWand').classList.toggle('on',m==='wand');$('mErase').classList.toggle('on',m==='erase');
   $('rowTol').classList.toggle('hidden',m!=='wand');$('rowBrush').classList.toggle('hidden',m!=='erase');
-  $('cHelp').textContent=m==='wand'?'Baguette : touchez le fond, la zone de couleur proche disparaît. « Nettoyer les restes » enlève les petits morceaux isolés.':'Gomme : passez le doigt sur ce qui reste à effacer.';}
+  $('cHelp').textContent=m==='wand'?'Baguette : touchez le fond, il disparaît. 2 doigts (ou ＋ －) pour zoomer et vous déplacer.':'Gomme : passez le doigt sur ce qui reste. 2 doigts pour zoomer et vous déplacer dans la photo.';}
 $('mWand').onclick=()=>setCutMode('wand');$('mErase').onclick=()=>setCutMode('erase');
 $('cBrush').oninput=e=>$('vBrush').textContent=e.target.value;
-function eraseAt(p){const r=+$('cBrush').value*Math.max(work.width,work.height)/800;
+function eraseAt(p){const r=+$('cBrush').value*cutFit.dpr/2/cutFit.k;
   wc.save();wc.globalCompositeOperation='destination-out';wc.beginPath();wc.arc(p.x,p.y,r,0,7);wc.fill();wc.restore();}
-ccv.addEventListener('pointerdown',e=>{const p=cutXY(e);
-  if(cutMode==='erase'){ccv.setPointerCapture(e.pointerId);pushHist();erasing=p;eraseAt(p);drawCut();return;}
-  if(p.x<0||p.y<0||p.x>=work.width||p.y>=work.height)return;
-  pushHist();const img=wc.getImageData(0,0,work.width,work.height);floodErase(img,p.x,p.y,+$('cTol').value);wc.putImageData(img,0,0);drawCut();});
-ccv.addEventListener('pointermove',e=>{if(!erasing)return;const p=cutXY(e);
-  const d=Math.hypot(p.x-erasing.x,p.y-erasing.y),n=Math.max(1,Math.ceil(d/4));
+const cp=new Map();let cpLast=null,strokeHist=false,tapStart=null;
+function cpPair(){const [a,b]=[...cp.values()];return{d:Math.hypot(a.x-b.x,a.y-b.y),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};}
+function devPt(e){const r=ccv.getBoundingClientRect();return{x:(e.clientX-r.left)*cutFit.dpr,y:(e.clientY-r.top)*cutFit.dpr};}
+ccv.addEventListener('pointerdown',e=>{ccv.setPointerCapture(e.pointerId);cp.set(e.pointerId,devPt(e));
+  if(cp.size===2){ // 2e doigt : on annule le coup de gomme commencé, et on passe en zoom
+    if(erasing&&strokeHist){const h=cutHist.pop();if(h)wc.putImageData(h,0,0);}erasing=false;tapStart=null;cpLast=cpPair();drawCut();return;}
+  if(cp.size>2)return;
+  const p=cutXY(e);
+  if(cutMode==='erase'){pushHist();strokeHist=true;erasing=p;eraseAt(p);drawCut();}
+  else tapStart={p,dev:devPt(e)};});
+ccv.addEventListener('pointermove',e=>{if(!cp.has(e.pointerId))return;cp.set(e.pointerId,devPt(e));
+  if(cp.size===2&&cpLast){const n=cpPair();cutView.tx+=n.cx-cpLast.cx;cutView.ty+=n.cy-cpLast.cy;drawCut();zoomCut(n.d/cpLast.d,n.cx,n.cy);cpLast=n;return;}
+  if(!erasing)return;const p=cutXY(e);
+  const d=Math.hypot(p.x-erasing.x,p.y-erasing.y),n=Math.max(1,Math.ceil(d/2));
   for(let i=1;i<=n;i++)eraseAt({x:erasing.x+(p.x-erasing.x)*i/n,y:erasing.y+(p.y-erasing.y)*i/n});erasing=p;drawCut();});
-['pointerup','pointercancel'].forEach(t=>ccv.addEventListener(t,()=>{erasing=false;}));
+function cpUp(e){if(!cp.has(e.pointerId))return;const dv=devPt(e);cp.delete(e.pointerId);
+  if(cp.size<2)cpLast=null;
+  if(tapStart&&cp.size===0&&Math.hypot(dv.x-tapStart.dev.x,dv.y-tapStart.dev.y)<12*cutFit.dpr){const p=tapStart.p; // baguette : un toucher net
+    if(p.x>=0&&p.y>=0&&p.x<work.width&&p.y<work.height){pushHist();const img=wc.getImageData(0,0,work.width,work.height);floodErase(img,p.x,p.y,+$('cTol').value);wc.putImageData(img,0,0);drawCut();}}
+  if(cp.size===0){erasing=false;tapStart=null;strokeHist=false;}}
+ccv.addEventListener('pointerup',cpUp);ccv.addEventListener('pointercancel',cpUp);
+ccv.addEventListener('wheel',e=>{e.preventDefault();const d=devPt(e);zoomCut(e.deltaY<0?1.15:1/1.15,d.x,d.y);},{passive:false});
 $('cClean').onclick=()=>{ // garde seulement le plus gros morceau (le sujet), enlève les restes isolés
   pushHist();const img=wc.getImageData(0,0,work.width,work.height),d=img.data,w=img.width,h=img.height;
   const lab=new Int32Array(w*h).fill(-1);let best=-1,bestN=0,id=0;
