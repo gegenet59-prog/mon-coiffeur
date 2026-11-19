@@ -563,6 +563,8 @@ function mugView(item){ // cadre serré sur le mug ; on n'ajoute la place de l'a
   const sgn=Math.sin(Math.PI-mugAngle),body=g.R*1.04,eR=sgn>0?ext*1.04:0,eL=sgn<0?ext*1.04:0; // place seulement du côté de l'anse
   return{x:g.cx-body-eL,y:g.top-g.ry-6,w:2*body+eL+eR,h:MUG.Hs+2*g.ry+30};}
 
+function mugViewRefW(item){const g=mugGeo(item),hw=g.R*0.62;return 2*g.R*1.04+(hw*0.45+Math.max(10,hw*0.75)+g.R*0.1)*1.04;} // largeur de référence : le mug garde la même taille quand il tourne
+
 
 /* ============ Catalogue de démo ============ */
 const DEMO=[
@@ -733,7 +735,9 @@ function quality(){
   else if(dpi>=okay){q.className='quality q-warn';q.innerHTML='<b>⚠ Qualité correcte</b><br>'+dpi+' DPI : ça passe, mais évitez de zoomer davantage';}
   else{q.className='quality q-bad';q.innerHTML='<b>✖ Photo trop petite</b><br>'+dpi+' DPI : le tirage sera flou. Prenez une photo plus grande.';}
 }
-function setImg(im){if(act())fixed.push(st);st={img:im,scale:1,rot:0,ox:0,oy:0};st.ox=faceOx();update();openFS();}
+function setImg(im){if(act())fixed.push(st);st={img:im,scale:1,rot:0,ox:0,oy:0};
+  if(sup&&sup.dessin==='mug3d'){const z=getDraw(sup).z,iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;st.scale=Math.min(1,Math.min(z.w/iw,z.h/ih)/Math.max(z.w/iw,z.h/ih));} // photo entière, pas rognée
+  st.ox=faceOx();update();openFS();}
 function readFile(f){const u=URL.createObjectURL(f);const im=new Image();im.onload=()=>setImg(im);im.onerror=()=>toast('Format non lu : essayez une photo JPG ou PNG');im.src=u;}
 $('file').onchange=e=>{const f=e.target.files[0];if(f)readFile(f);e.target.value='';};
 $('pickPhoto').onclick=()=>$('file').click();
@@ -794,7 +798,7 @@ function faceOx(){if(sup&&sup.dessin==='mug3d'){const g=mugGeo(sup);return Math.
 $('tPhoto').onclick=()=>$('file').click();
 let tDraft=null;
 function openTextBox(){const ed=st.kind==='texte';
-  tDraft=ed?{...st}:{kind:'texte',text:'',font:0,color:'#111111',tour:false,size:0.32,scale:1,rot:0,ox:faceOx(),oy:0};
+  tDraft=ed?{...st}:{fresh:true,kind:'texte',text:'',font:0,color:'#111111',tour:false,size:0.32,scale:1,rot:0,ox:faceOx(),oy:0};
   $('tTxt').value=tDraft.text;$('tTour').checked=tDraft.tour;
   const fb=$('tFonts');fb.innerHTML='';FONTS.forEach((f,i)=>{const b=document.createElement('button');b.textContent=f[0];b.style.font=`${f[2]} 15px ${f[1]}`;b.className=i===tDraft.font?'on':'';b.onclick=()=>{tDraft.font=i;[...fb.children].forEach((x,j)=>x.className=j===i?'on':'');};fb.appendChild(b);});
   const cb=$('tColors');cb.innerHTML='';['#111111','#ffffff','#d4a64a','#c8102e','#1f4fbf','#e85d9c','#2e8b57'].forEach(col=>{const b=document.createElement('button');b.className='sw'+(col===tDraft.color?' on':'');b.style.background=col;b.onclick=()=>{tDraft.color=col;[...cb.children].forEach(x=>x.classList.toggle('on',x===b));};cb.appendChild(b);});
@@ -803,6 +807,8 @@ $('tText').onclick=openTextBox;
 $('tCancel').onclick=()=>$('tbox').classList.add('hidden');
 $('tOk').onclick=()=>{const t=$('tTxt').value.trim();if(!t){toast('Écrivez un texte');return;}
   tDraft.text=t;tDraft.tour=$('tTour').checked;if(tDraft.tour){tDraft.ox=0;tDraft.rot=0;}
+  if(!tDraft.tour&&tDraft.fresh){const z=getDraw(sup).z,f=FONTS[tDraft.font||0],m=document.createElement('canvas').getContext('2d');m.font=`${f[2]} 100px ${f[1]}`;const w100=m.measureText(t).width||1;tDraft.size=Math.max(.08,Math.min(.32,(((sup.dessin==='mug3d'?.32:.7)*z.w)/w100*100)/z.h));}
+  delete tDraft.fresh;
   if(st.kind!=='texte'&&act())fixed.push(st); // la photo en cours est fixée automatiquement
   st=tDraft;$('tbox').classList.add('hidden');syncUI();update();};
 $('qZp').onclick=()=>{if(!act())return;st.scale=Math.min(5,st.scale*1.12);update();};
@@ -820,7 +826,7 @@ function drawFS(){
   if(fcv.width!==Math.round(W*dpr)||fcv.height!==Math.round(H*dpr)){fcv.width=Math.round(W*dpr);fcv.height=Math.round(H*dpr);}
   const gd=getDraw(sup),z=gd.mug?gd.view:gd.z,m=gd.mug?0.02:0.08;
   const topPad=76,botPad=($('fsTools').offsetHeight||150)+12,Hu=Math.max(80,H-topPad-botPad);
-  let k=Math.min(W/(z.w*(1+2*m)),Hu/(z.h*(1+2*m)));
+  let k=Math.min(W/((gd.mug?mugViewRefW(sup):z.w)*(1+2*m)),Hu/(z.h*(1+2*m)));
   window.BIGBG=true;
   // Tel debout + zone très large (mug…) : on remplit la HAUTEUR de l'écran et on montre une partie du mug à la fois.
   // Les flèches ◀ ▶ ou la mini-vue en haut font tourner le mug.
