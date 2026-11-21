@@ -167,6 +167,15 @@ textarea{min-height:70px;resize:vertical}
 .ms-tools .fs-quick button.mir{font-size:14px;color:var(--or2);border-color:var(--or)}
 .ms-tools .fs-btns button{padding:12px 18px;font-size:15px}
 .ms-note{font-size:12px;color:var(--mut);text-align:center;min-height:16px}
+
+.modeTabs{display:flex;gap:8px;margin:2px 0 14px}
+.modeTabs button{flex:1;padding:11px 4px;border-radius:12px;font-size:14px;white-space:nowrap}
+.modeTabs button.on{background:var(--or);color:#1a1408;border-color:var(--or);font-weight:600}
+.sThumbs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.sThumbs div{position:relative}
+.sThumbs img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.sThumbs button{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:99px;padding:0;font-size:13px;line-height:1}
+#sArt{width:100%}
 </style>
 </head>
 <body>
@@ -177,15 +186,33 @@ textarea{min-height:70px;resize:vertical}
 </div></header>
 
 <div class="wrap">
-<div class="demo-banner" id="demoBanner">Version de démonstration : articles et caractéristiques réels (fournisseurs du marché), prix de vente d'exemple. Rien n'est envoyé.</div>
+<div class="demo-banner" id="demoBanner">Version de démonstration : articles et caractéristiques réels (fournisseurs du marché), prix de vente d'exemple. Les commandes de test partent par mail chez Nizar.</div>
 
 <!-- ===== Étape 1 : catalogue ===== -->
 <section id="v-cat">
+  <div class="modeTabs"><button id="tabCreate" class="on">🎨 Je crée moi-même</button><button id="tabSend">📤 Nizar s'en occupe</button></div>
+  <div id="catCreate">
   <div class="steps"><span class="on">1. Support</span><span>2. Ma photo</span><span>3. Validation</span></div>
   <h1>Choisissez votre support</h1>
   <p class="sub">Du cure-dent au mur XXL : touchez un article pour y placer votre photo.</p>
   <div class="chips" id="chips"></div>
   <div class="grid" id="grid"></div>
+  </div>
+  <div id="catSend" class="hidden">
+    <h1>Nizar s'occupe de tout</h1>
+    <p class="sub">Envoyez-lui votre photo et dites-lui ce que vous voulez : il prépare la création à votre place.</p>
+    <div class="panel">
+      <label class="f"><span>Vos photos (jusqu'à 4)</span><button type="button" class="gold" id="sPick" style="width:100%">📷 Choisir mes photos</button></label>
+      <input type="file" id="sFile" accept="image/*" multiple class="hidden">
+      <div id="sThumbs" class="sThumbs"></div>
+      <label class="f"><span>Sur quel article ?</span><select id="sArt"></select></label>
+      <label class="f"><span>Ce que vous voulez (texte, couleurs, idées…)</span><textarea id="sMsg" placeholder="Ex : mug avec la photo de ma fille et « Meilleure maman »"></textarea></label>
+      <label class="f"><span>Prénom et nom</span><input type="text" id="sNom" autocomplete="name"></label>
+      <label class="f"><span>Téléphone (pour vous répondre)</span><input type="tel" id="sTel" autocomplete="tel"></label>
+      <label class="f"><span>E-mail (facultatif)</span><input type="email" id="sMail" autocomplete="email"></label>
+      <button class="gold" id="sSend" style="width:100%;margin-top:6px">Envoyer à Nizar</button>
+    </div>
+  </div>
 </section>
 
 <!-- ===== Étape 2 : éditeur ===== -->
@@ -254,7 +281,7 @@ textarea{min-height:70px;resize:vertical}
     <h1>Merci <span id="okNom"></span> !</h1>
     <p class="sub">Votre création n° <b class="gold-t" id="okNum"></b> est enregistrée.<br>Nizar vous envoie un message dès qu'elle est prête.</p>
     <p class="sub" id="okMail"></p>
-    <div class="note" style="max-width:460px;margin:16px auto">Démo : rien n'est réellement envoyé. Dans la vraie version, la photo en haute définition et la commande partent chez Nizar (e-mail + espace commandes), et le client reçoit un SMS ou WhatsApp « c'est prêt ».</div>
+    <div class="note" style="max-width:460px;margin:16px auto">Version de test : le fichier part par mail chez Nizar. Dans la vraie version, le client recevra aussi un SMS ou WhatsApp « c'est prêt ».</div>
     <button class="gold" id="btnAgain" style="margin-top:14px">Créer autre chose</button>
   </div>
 </section>
@@ -1019,7 +1046,44 @@ $('barNext').onclick=()=>{
     step='ed';$('barNext').textContent='Valider';show('v-ok');
   }
 };
-$('btnAgain').onclick=()=>{st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
+/* ============ Onglet « Nizar s'en occupe » : le client envoie juste ses photos ============ */
+let sPhotos=[]; // {url (miniature), blob}
+function setTab(send){$('tabCreate').classList.toggle('on',!send);$('tabSend').classList.toggle('on',send);$('catCreate').classList.toggle('hidden',send);$('catSend').classList.toggle('hidden',!send);
+  if(send){const a=$('sArt');const keep=a.value;a.innerHTML='<option>Je ne sais pas, conseillez-moi</option>';visibles().forEach(i=>{const o=document.createElement('option');o.textContent=i.nom;a.appendChild(o);});if(keep)a.value=keep;}}
+$('tabCreate').onclick=()=>setTab(false);$('tabSend').onclick=()=>setTab(true);
+$('sPick').onclick=()=>$('sFile').click();
+function reduirePhoto(file,max){return new Promise(res=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>res({blob:b,canvas:c}),'image/jpeg',.9);};im.onerror=()=>res(null);im.src=u;});}
+$('sFile').onchange=async e=>{
+  for(const f of [...e.target.files]){if(sPhotos.length>=4){toast('4 photos maximum');break;}
+    const r=await reduirePhoto(f,2400);if(!r){toast('Photo illisible');continue;}
+    sPhotos.push({blob:r.blob,url:URL.createObjectURL(r.blob),name:(f.name||'photo').replace(/[^A-Za-z0-9._-]+/g,'-')});}
+  e.target.value='';drawThumbs();};
+function drawThumbs(){const t=$('sThumbs');t.innerHTML='';sPhotos.forEach((p,i)=>{const d=document.createElement('div'),im=document.createElement('img'),x=document.createElement('button');im.src=p.url;x.textContent='✕';x.onclick=()=>{sPhotos.splice(i,1);drawThumbs();};d.append(im,x);t.appendChild(d);});}
+$('sSend').onclick=async()=>{
+  const nom=$('sNom').value.trim(),tel=$('sTel').value.trim();
+  if(!sPhotos.length){toast('Ajoutez au moins une photo');return;}
+  if(!nom||tel.replace(/\D/g,'').length<10){toast('Indiquez votre nom et un numéro de téléphone');return;}
+  const num='NZ-'+Date.now().toString(36).slice(-5).toUpperCase(),art=$('sArt').value,msg=$('sMsg').value.trim(),mail=$('sMail').value.trim();
+  $('sSend').disabled=true;
+  const th=await reduirePhoto(sPhotos[0].blob,600),big=await reduirePhoto(sPhotos[0].blob,1600);
+  const toUrl=cv=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(cv);});
+  const cmd={num,date:new Date().toLocaleString('fr-FR'),nom,tel,mail,msg:(msg?msg+' · ':'')+'📤 '+sPhotos.length+' photo(s) à traiter par Nizar',article:'À traiter par Nizar : '+art,qty:1,total:'—',w:0,h:0,apercu:await toUrl(th.blob),hd:await toUrl(big.blob),fn:'NIZART-'+num+'-photo-1.jpg'};
+  ORDERS.unshift(cmd);while(ORDERS.length>1&&!save(KEY_O,ORDERS))ORDERS.pop();
+  if(!save(KEY_O,ORDERS)){delete cmd.hd;save(KEY_O,[cmd]);ORDERS=[cmd];}
+  $('okNom').textContent=nom.split(' ')[0];$('okNum').textContent=num;show('v-ok');
+  const info=$('okMail');info.textContent='Envoi des photos à Nizar…';
+  try{
+    const f=new FormData();
+    f.append('_subject','NIZ\'ART · photo à traiter '+num+' · '+nom);f.append('_captcha','false');f.append('_template','table');
+    f.append('Demande',num+' (Nizar s\'occupe de tout)');f.append('Client',nom);f.append('Téléphone',tel);if(mail)f.append('E-mail',mail);
+    f.append('Article souhaité',art);if(msg)f.append('Message',msg);
+    sPhotos.forEach((p,i)=>f.append('attachment',p.blob,'NIZART-'+num+'-photo-'+(i+1)+'.jpg'));
+    const r=await fetch('https://formsubmit.co/ajax/'+MAIL_NIZAR,{method:'POST',body:f,headers:{Accept:'application/json'}});
+    const j=await r.json().catch(()=>({}));
+    info.textContent=(r.ok&&String(j.success)!=='false')?'✓ Vos photos ont été envoyées à Nizar par mail.':'⚠ Envoi par mail impossible pour le moment.';
+  }catch(e){info.textContent='⚠ Envoi par mail impossible (pas de connexion ?).';}
+  sPhotos=[];drawThumbs();['sMsg','sNom','sTel','sMail'].forEach(k=>$(k).value='');$('sSend').disabled=false;};
+$('btnAgain').onclick=()=>{setTab(false);st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
 /* Fichier d'impression : la zone seule, fond TRANSPARENT (seuls photos et texte), 300 DPI, PNG.
    La couleur du mug n'est jamais dans le fichier : c'est l'imprimante qui décide (blanc / sublimation). */
 function exportHD(){
