@@ -334,6 +334,11 @@ textarea{min-height:70px;resize:vertical}
     <div class="row"><button class="small" id="mSave">Enregistrer</button><a id="mOpen" target="_blank" rel="noopener" style="text-decoration:none"><button class="gold small" type="button">📬 Ouvrir ma boîte mail</button></a></div>
     <p class="sub" id="mNote" style="margin:6px 0 0;font-size:12.5px">Dans le mail reçu : la photo est en pièce jointe, il suffit de la télécharger.</p>
   </div>
+  <div class="adm-box" style="background:var(--card,#17151b);border:1px solid var(--line,#2a2730);border-radius:14px;padding:12px;margin-bottom:12px">
+    <div class="row" style="justify-content:space-between;align-items:center"><b>📥 Photos reçues des clients (<span id="rN">0</span>)</b><button class="small" id="rRef">↻ Actualiser</button></div>
+    <p class="sub" style="margin:6px 0;font-size:12.5px">Arrivent toutes seules (QR code, « Nizar s'en occupe », commandes). Gardées sur cet appareil. Page admin ouverte = réception en direct.</p>
+    <div id="rList" style="display:grid;gap:8px"></div>
+  </div>
   <div class="adm-list" id="aList"></div>
   <div class="row" style="margin-top:16px">
     <button class="small danger" id="aDelDemo">Supprimer tous les articles de démo</button>
@@ -3396,6 +3401,7 @@ $('barNext').onclick=()=>{
     telechargerPNG(cv,fn); // le fichier d'impression part directement
     const cmd={num,date:new Date().toLocaleString('fr-FR'),nom,mail,msg:$('cMsg').value.trim(),article:sup.nom,qty,total:total(),w:sup.w,h:sup.h,apercu:$('recImg').src,hd,fn};
     envoyerMail(cv,cmd,fn);
+    cv.toBlob(b=>deposer(b,fn,'Commande '+num+' · '+nom,'Client : '+nom+' · '+mail+' · '+sup.nom+' × '+qty+' · '+total()),'image/png');
     ORDERS.unshift(cmd);
     while(ORDERS.length>1 && !save(KEY_O,ORDERS)) ORDERS.pop(); // garde les plus récentes si la mémoire est pleine
     if(!save(KEY_O,ORDERS)){delete cmd.hd;save(KEY_O,[cmd]);ORDERS=[cmd];} // dernier recours : commande sans le gros fichier
@@ -3436,6 +3442,7 @@ $('sSend').onclick=async()=>{
   const c={_subject:'NIZ\'ART · photo à traiter '+num+' · '+nom,Demande:num+' (Nizar s\'occupe de tout)',Client:nom,email:mail,Article_souhaite:art};
   if(msg)c.Message=msg;
   envoiFormSubmit(c,sPhotos.map((p,i)=>({blob:p.blob,nom:'NIZART-'+num+'-photo-'+(i+1)+'.jpg'})),info,'✓ Vos photos ont été envoyées à Nizar par mail.','⚠ Envoi par mail pas confirmé (connexion ?).');
+  sPhotos.forEach((p,i)=>deposer(p.blob,'NIZART-'+num+'-photo-'+(i+1)+'.jpg','Photo à traiter '+num+' · '+nom,'Client : '+nom+' · '+mail+' · '+art+(msg?' · '+msg:'')));
   sPhotos=[];drawThumbs();['sMsg','sNom','sMail'].forEach(k=>$(k).value='');$('sSend').disabled=false;};
 
 /* Borne partagée : après une commande, l'écran revient à l'accueil et efface tout (nom, mail, photos) */
@@ -3508,6 +3515,7 @@ function pagePhone(){
       try{const r=await reduirePhoto(f,2400);if(!r)throw 0;
         const rep=await fetch(RELAIS+'nizart-'+id,{method:'PUT',body:r.blob,headers:{Filename:'photo.jpg'}});
         if(!rep.ok)throw 0;
+        deposer(r.blob,'photo-qr-'+Date.now().toString(36)+'.jpg','Photo reçue par QR code','Envoyée depuis un téléphone (code '+id.slice(-6)+')');
         $('tEtat').textContent='✓ Photo envoyée ! Regardez l\'écran de la borne. Vous pouvez en envoyer une autre.';}
       catch(err){$('tEtat').textContent='⚠ Envoi impossible. Vérifiez votre connexion et réessayez.';}
     }
@@ -3529,6 +3537,40 @@ function exportHD(){
 }
 /* ENVOI À NIZAR (test) : service gratuit FormSubmit, le fichier part en pièce jointe par mail. Au 1er envoi, Nizar reçoit un mail « Activer » à valider une fois.
    Plus tard, sur l'hébergement de Nizar, cette adresse sera remplacée par son propre script PHP. */
+/* ===== Boîte de réception des photos : tout ce que les clients envoient arrive aussi dans l'espace admin =====
+   Relais gratuit ntfy.sh (photos gardées 3 h côté relais) ; l'espace admin les copie sur l'appareil dès qu'il est ouvert.
+   Test : le nom du canal fait office de clé secrète. Avec l'hébergement de Nizar : remplacé par son propre stockage. */
+const RECU='nizart-recu-k7q2x9m4p8w3c6v1b5n0z';
+function deposer(blob,nom,titre,msg){try{if(!blob||blob.size>14e6)return;
+  fetch('https://ntfy.sh/'+RECU+'?'+new URLSearchParams({filename:nom,title:titre,message:msg||'-'}),{method:'PUT',body:blob}).catch(()=>{});}catch(e){}}
+function idb(){return new Promise((ok,ko)=>{const r=indexedDB.open('nizart-recus',1);r.onupgradeneeded=()=>r.result.createObjectStore('r',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error);});}
+async function idbAll(){try{const d=await idb();return await new Promise(ok=>{const q=d.transaction('r').objectStore('r').getAll();q.onsuccess=()=>ok(q.result||[]);q.onerror=()=>ok([]);});}catch(e){return [];}}
+async function idbPut(o){try{const d=await idb();return await new Promise(ok=>{const t=d.transaction('r','readwrite');t.objectStore('r').put(o);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false);});}catch(e){return false;}}
+async function idbDel(id){try{const d=await idb();return await new Promise(ok=>{const t=d.transaction('r','readwrite');t.objectStore('r').delete(id);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false);});}catch(e){return false;}}
+async function recevoirMsg(m){
+  if(!m||m.event!=='message'||!m.attachment||!m.attachment.url)return;
+  if((await idbAll()).some(x=>x.id===m.id))return;
+  try{const r=await fetch(m.attachment.url);if(!r.ok)throw 0;const blob=await r.blob();
+    await idbPut({id:m.id,time:(m.time||0)*1000,titre:m.title||'Photo',msg:m.message||'',nom:m.attachment.name||'photo.jpg',blob});}catch(e){console.warn('réception',e);}}
+async function actualiserRecus(){
+  try{const r=await fetch('https://ntfy.sh/'+RECU+'/json?poll=1&since=12h');const t=await r.text();
+    for(const l of t.split('\n')){if(!l.trim())continue;try{await recevoirMsg(JSON.parse(l));}catch(e){}}}catch(e){}
+  await dessinerRecus();}
+let recuSrc=null;
+function ecouterRecus(){if(recuSrc||typeof EventSource==='undefined')return;
+  try{recuSrc=new EventSource('https://ntfy.sh/'+RECU+'/sse');
+    recuSrc.onmessage=async ev=>{try{await recevoirMsg(JSON.parse(ev.data));await dessinerRecus();toast('📥 Nouvelle photo reçue');}catch(e){}};}catch(e){}}
+async function dessinerRecus(){
+  const L=(await idbAll()).sort((a,b)=>b.time-a.time),box=$('rList');box.innerHTML='';$('rN').textContent=L.length;
+  if(!L.length){box.innerHTML='<p class="sub" style="margin:0">Aucune photo reçue pour l\'instant.</p>';return;}
+  L.forEach(o=>{const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;align-items:center;background:#0f0e13;border-radius:10px;padding:8px';
+    const url=URL.createObjectURL(o.blob),im=document.createElement('img');im.src=url;im.style.cssText='width:64px;height:64px;object-fit:contain;border-radius:8px;background:repeating-conic-gradient(#2a2730 0 25%,#1d1a22 0 50%) 0 0/14px 14px';
+    const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px';
+    const b=document.createElement('b');b.textContent=o.titre;const sp=document.createElement('div');sp.style.cssText='color:var(--mut);word-break:break-word';sp.textContent=o.msg+' · '+new Date(o.time).toLocaleString('fr-FR');tx.append(b,sp);
+    const dl=document.createElement('a');dl.href=url;dl.download=o.nom;dl.innerHTML='<button class="gold small" type="button">⬇ Télécharger</button>';dl.style.textDecoration='none';
+    const x=document.createElement('button');x.className='small danger';x.textContent='🗑';x.onclick=async()=>{if(confirm('Supprimer cette photo reçue ?')){await idbDel(o.id);dessinerRecus();}};
+    row.append(im,tx,dl,x);box.appendChild(row);});}
+$('rRef').onclick=()=>{toast('Actualisation…');actualiserRecus();};
 const MAIL_DEF='nizarneffati@hotmail.fr',KEY_M='nizart-v4-mail';
 let MAIL_NIZAR=(load(KEY_M,{}).adr)||MAIL_DEF;
 function lienBoite(adr,lien){if(lien)return lien;const d=(adr.split('@')[1]||'').toLowerCase();
@@ -3579,7 +3621,7 @@ $('btnAdmin').onclick=()=>{if(adminOK){openAdmin();return;}
   document.body.appendChild(m);const inp=m.querySelector('#code');inp.focus();
   const ok=()=>{if(inp.value===CODE){adminOK=true;m.remove();openAdmin();}else{toast('Code incorrect');inp.value='';}};
   m.querySelector('#cok').onclick=ok;inp.onkeydown=e=>{if(e.key==='Enter')ok();};m.querySelector('#cx').onclick=()=>m.remove();};
-function openAdmin(){buildAdmin();show('v-adm');}
+function openAdmin(){buildAdmin();show('v-adm');actualiserRecus();ecouterRecus();}
 $('aClose').onclick=()=>{buildChips();buildGrid();show('v-cat');};
 $('home').onclick=()=>{buildChips();buildGrid();show('v-cat');};
 function buildAdmin(){
