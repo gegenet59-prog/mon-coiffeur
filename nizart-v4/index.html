@@ -320,7 +320,7 @@ textarea{min-height:70px;resize:vertical}
 
 <!-- ===== Espace Nizar ===== -->
 <section id="v-adm" class="hidden">
-  <h1>Espace Nizar · Catalogue</h1>
+  <h1>Espace Nizar · Catalogue</h1><div style="font-size:11px;color:var(--mut);margin:-6px 0 6px">version 21h05 · photos reçues + « Préparer ici »</div>
   <p class="sub">Ajoutez vos articles, modifiez prix et caractéristiques, masquez ou supprimez les articles de démo.</p>
   <div class="row" style="margin-bottom:12px">
     <button class="gold" id="aNew">＋ Ajouter un article</button>
@@ -3567,7 +3567,8 @@ async function dessinerRecus(){
     const url=URL.createObjectURL(o.blob),im=document.createElement('img');im.src=url;im.style.cssText='width:64px;height:64px;object-fit:contain;border-radius:8px;background:repeating-conic-gradient(#2a2730 0 25%,#1d1a22 0 50%) 0 0/14px 14px';
     const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px';
     const b=document.createElement('b');b.textContent=o.titre;const sp=document.createElement('div');sp.style.cssText='color:var(--mut);word-break:break-word';sp.textContent=o.msg+' · '+new Date(o.time).toLocaleString('fr-FR');tx.append(b,sp);
-    const dl=document.createElement('a');dl.href=url;dl.download=o.nom;dl.innerHTML='<button class="small" type="button">⬇ Télécharger</button>';dl.style.textDecoration='none';
+    const dl=document.createElement('button');dl.className='small';dl.type='button';dl.textContent='⬇ Télécharger';
+    dl.onclick=()=>{const t=document.createElement('a');t.href=url;t.download=o.nom;document.body.appendChild(t);t.click();t.remove();};
     const pr=document.createElement('button');pr.className='gold small';pr.textContent='✏️ Préparer ici';pr.title='Ouvre la photo dans l\'appli : choisis le support et prépare la commande du client';
     pr.onclick=()=>{attente.push(new File([o.blob],o.nom,{type:o.blob.type||'image/jpeg'}));majAttente();$('aClose').click();setTab('create');toast('Photo prête : choisis le support pour la préparer');};
     const act=document.createElement('div');act.style.cssText='display:flex;flex-direction:column;gap:6px;align-items:stretch';act.append(pr,dl);
