@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head><meta name="robots" content="noindex">
+<head>
+<meta name="robots" content="noindex">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NIZ'ART · Personnalisez votre création</title>
@@ -343,7 +344,7 @@ textarea{min-height:70px;resize:vertical}
   </div>
   <div class="tbox hidden" id="tbox"><div class="box">
     <b style="font-weight:500">Votre texte</b>
-    <input type="text" id="tTxt" maxlength="60" placeholder="Ex : Le meilleur papa du monde" style="margin:8px 0">
+    <textarea id="tTxt" rows="4" maxlength="240" placeholder="Ex : Le meilleur&#10;papa&#10;du monde&#10;(Entrée = nouvelle ligne)" style="margin:8px 0;width:100%;box-sizing:border-box;resize:none;font:inherit;line-height:1.3"></textarea>
     <div class="tchips" id="tFonts"></div>
     <div class="tchips" id="tColors"></div>
     <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="tTour" style="width:auto"> Faire le tour du mug (le texte se répète)</label>
@@ -655,9 +656,9 @@ function drawText(c,s,z){
   const cx=z.x+z.w/2+s.ox*z.w, cy=z.y+z.h/2+s.oy*z.h;
   if(s.color==='#ffffff'){c.shadowColor='rgba(0,0,0,.35)';c.shadowBlur=px*0.08;}
   if(s.tour){ // le texte se répète sur toute la longueur : il fait le tour du mug
-    const unit=s.text+'  •  ',uw=Math.max(10,c.measureText(unit).width);c.textAlign='left';
+    const unit=s.text.replace(/\n+/g,' ')+'  •  ',uw=Math.max(10,c.measureText(unit).width);c.textAlign='left';
     for(let x=cx-Math.ceil((cx-z.x)/uw+1)*uw;x<z.x+z.w;x+=uw)c.fillText(unit,x,cy);
-  }else{c.textAlign='center';c.translate(cx,cy);c.rotate(s.rot*Math.PI/180);c.fillText(s.text,0,0);}
+  }else{c.textAlign='center';c.translate(cx,cy);c.rotate(s.rot*Math.PI/180);const ln=s.text.split('\n'),lh=px*1.15;ln.forEach((t,i)=>c.fillText(t,0,(i-(ln.length-1)/2)*lh));}
   c.restore();
 }
 function drawUserImage(c,s,z){
@@ -818,7 +819,8 @@ function closeFS(fromBack){if(!fsOpen)return;fsOpen=false;if(fromBack!==true){tr
 $('bText').onclick=()=>{if(sup&&sup.dessin==='mug3d'){openStudio();openTextBox();return;}fsOpen?0:(fsOpen=false);if(!fsOpen){fsOpen=true;fs.classList.remove('hidden');document.body.style.overflow='hidden';$('fsTitle').textContent=sup.nom;$('fsCtrl').appendChild($('ctrl'));$('fsCtrl').classList.add('hidden');try{history.pushState({nizFS:1},'');}catch(e){}requestAnimationFrame(()=>{drawFS();refreshTools();});}openTextBox();};
 $('fsOk').onclick=()=>closeFS();
 window.addEventListener('popstate',()=>{if(msOpen)closeStudio(true);else if(fsOpen)closeFS(true);});
-function layerName(L,i){return L.kind==='texte'?'« '+(L.text.length>12?L.text.slice(0,12)+'…':L.text)+' »':'Photo '+(i+1);}
+const t1=L=>L.text.replace(/\n+/g,' ');
+function layerName(L,i){return L.kind==='texte'?'« '+(t1(L).length>12?t1(L).slice(0,12)+'…':t1(L))+' »':'Photo '+(i+1);}
 function refreshTools(){
   $('tPhoto').textContent=act()?'＋ Photo':'📷 Photo';
   const box=$('fsLayers');box.innerHTML='';
@@ -843,7 +845,7 @@ $('tText').onclick=openTextBox;
 $('tCancel').onclick=()=>$('tbox').classList.add('hidden');
 $('tOk').onclick=()=>{const t=$('tTxt').value.trim();if(!t){toast('Écrivez un texte');return;}
   tDraft.text=t;tDraft.tour=$('tTour').checked;if(tDraft.tour){tDraft.ox=0;tDraft.rot=0;}
-  if(!tDraft.tour&&tDraft.fresh){const z=getDraw(sup).z,f=FONTS[tDraft.font||0],m=document.createElement('canvas').getContext('2d');m.font=`${f[2]} 100px ${f[1]}`;const w100=m.measureText(t).width||1;tDraft.size=Math.max(.08,Math.min(.32,(((sup.dessin==='mug3d'?.32:.7)*z.w)/w100*100)/z.h));}
+  if(!tDraft.tour&&tDraft.fresh){const z=getDraw(sup).z,f=FONTS[tDraft.font||0],m=document.createElement('canvas').getContext('2d');m.font=`${f[2]} 100px ${f[1]}`;const lns=t.split('\n'),w100=Math.max(1,...lns.map(x=>m.measureText(x).width));tDraft.size=Math.max(.08,Math.min(.32,(((sup.dessin==='mug3d'?.32:.7)*z.w)/w100*100)/z.h,.6/(1.15*lns.length)));}
   delete tDraft.fresh;
   if(st.kind!=='texte'&&act())fixed.push(st); // la photo en cours est fixée automatiquement
   st=tDraft;$('tbox').classList.add('hidden');syncUI();update();};
@@ -1219,14 +1221,14 @@ function animFace(target){cancelAnimationFrame(faceAnim);if(msMode!=='3d'){faceT
   const step=t=>{const k=Math.min(1,(t-t0)/280),e=1-Math.pow(1-k,3);faceTo(from+d*e);draw3D();if(k<1)faceAnim=requestAnimationFrame(step);};faceAnim=requestAnimationFrame(step);}
 function layerBox(L){const g=mugGeo(sup);
   if(L.kind==='texte'){const f=FONTS[L.font||0],px=Math.max(4,L.size*g.Hb*L.scale);mctx.font=`${f[2]} ${px}px ${f[1]}`;
-    const w=L.tour?g.T:mctx.measureText(L.text).width;return{cx:L.tour?g.T/2:g.T/2+L.ox*g.T,cy:g.Hb/2+L.oy*g.Hb,w,h:px*1.15,rot:L.tour?0:L.rot};}
+    const ln=L.tour?[L.text.replace(/\n+/g,' ')]:L.text.split('\n'),w=L.tour?g.T:Math.max(...ln.map(t=>mctx.measureText(t).width));return{cx:L.tour?g.T/2:g.T/2+L.ox*g.T,cy:g.Hb/2+L.oy*g.Hb,w,h:px*1.15*ln.length,rot:L.tour?0:L.rot};}
   const iw=L.img.naturalWidth||L.img.width,ih=L.img.naturalHeight||L.img.height,s0=Math.max(g.T/iw,g.Hb/ih)*L.scale;
   return{cx:g.T/2+L.ox*g.T,cy:g.Hb/2+L.oy*g.Hb,w:iw*s0,h:ih*s0,rot:L.rot};}
 function hitTest(p){const m=10/(flG?flG.kf:1),arr=allLayers();
   for(let i=arr.length-1;i>=0;i--){const L=arr[i],b=layerBox(L),r=-b.rot*Math.PI/180,dx=p.x-b.cx,dy=p.y-b.cy,lx=dx*Math.cos(r)-dy*Math.sin(r),ly=dx*Math.sin(r)+dy*Math.cos(r);
     if(Math.abs(lx)<=b.w/2+m&&Math.abs(ly)<=b.h/2+m)return L;}
   return null;}
-function layerLabel(L){if(L.kind==='texte')return '« '+(L.text.length>14?L.text.slice(0,14)+'…':L.text)+' »';const n=allLayers().filter(x=>x.img).indexOf(L);return 'Photo '+(n+1);}
+function layerLabel(L){if(L.kind==='texte')return '« '+(t1(L).length>14?t1(L).slice(0,14)+'…':t1(L))+' »';const n=allLayers().filter(x=>x.img).indexOf(L);return 'Photo '+(n+1);}
 
 /* aimants : centre (face en face de l'anse), côtés, symétrie avec les autres éléments */
 function snapSel(){if(!act())return;
