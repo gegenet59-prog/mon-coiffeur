@@ -1072,16 +1072,9 @@ $('sSend').onclick=async()=>{
   if(!save(KEY_O,ORDERS)){delete cmd.hd;save(KEY_O,[cmd]);ORDERS=[cmd];}
   $('okNom').textContent=nom.split(' ')[0];$('okNum').textContent=num;show('v-ok');
   const info=$('okMail');info.textContent='Envoi des photos à Nizar…';
-  try{
-    const f=new FormData();
-    f.append('_subject','NIZ\'ART · photo à traiter '+num+' · '+nom);f.append('_captcha','false');f.append('_template','table');
-    f.append('Demande',num+' (Nizar s\'occupe de tout)');f.append('Client',nom);f.append('Téléphone',tel);if(mail)f.append('E-mail',mail);
-    f.append('Article souhaité',art);if(msg)f.append('Message',msg);
-    sPhotos.forEach((p,i)=>f.append('attachment',p.blob,'NIZART-'+num+'-photo-'+(i+1)+'.jpg'));
-    const r=await fetch('https://formsubmit.co/ajax/'+MAIL_NIZAR,{method:'POST',body:f,headers:{Accept:'application/json'}});
-    const j=await r.json().catch(()=>({}));
-    info.textContent=(r.ok&&String(j.success)!=='false')?'✓ Vos photos ont été envoyées à Nizar par mail.':'⚠ Envoi par mail impossible pour le moment.';
-  }catch(e){info.textContent='⚠ Envoi par mail impossible (pas de connexion ?).';}
+  const c={_subject:'NIZ\'ART · photo à traiter '+num+' · '+nom,Demande:num+' (Nizar s\'occupe de tout)',Client:nom,Telephone:tel,Article_souhaite:art};
+  if(mail)c.Email=mail;if(msg)c.Message=msg;
+  envoiFormSubmit(c,sPhotos.map((p,i)=>({blob:p.blob,nom:'NIZART-'+num+'-photo-'+(i+1)+'.jpg'})),info,'✓ Vos photos ont été envoyées à Nizar par mail.','⚠ Envoi par mail pas confirmé (connexion ?).');
   sPhotos=[];drawThumbs();['sMsg','sNom','sTel','sMail'].forEach(k=>$(k).value='');$('sSend').disabled=false;};
 $('btnAgain').onclick=()=>{setTab(false);st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
 /* Fichier d'impression : la zone seule, fond TRANSPARENT (seuls photos et texte), 300 DPI, PNG.
@@ -1099,22 +1092,24 @@ function exportHD(){
 /* ENVOI À NIZAR (test) : service gratuit FormSubmit, le fichier part en pièce jointe par mail. Au 1er envoi, Nizar reçoit un mail « Activer » à valider une fois.
    Plus tard, sur l'hébergement de Nizar, cette adresse sera remplacée par son propre script PHP. */
 const MAIL_NIZAR='nizarneffati@hotmail.fr';
+/* Envoi par un vrai formulaire caché (la méthode que FormSubmit documente pour les pièces jointes), dans un cadre invisible pour rester dans l'appli */
+function envoiFormSubmit(champs,fichiers,info,msgOk,msgKo){
+  const id='fsf'+Date.now(),ifr=document.createElement('iframe'),f=document.createElement('form');
+  ifr.name=id;ifr.style.cssText='display:none';f.method='POST';f.enctype='multipart/form-data';f.action='https://formsubmit.co/'+MAIL_NIZAR;f.target=id;f.style.display='none';
+  Object.entries({_captcha:'false',_template:'table',...champs}).forEach(([k,v])=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=v;f.appendChild(i);});
+  fichiers.forEach(({blob,nom})=>{const i=document.createElement('input');i.type='file';i.name='attachment';const dt=new DataTransfer();dt.items.add(new File([blob],nom,{type:blob.type}));i.files=dt.files;f.appendChild(i);});
+  document.body.append(ifr,f);
+  let fini=false;const clean=()=>setTimeout(()=>{ifr.remove();f.remove();},1500);
+  const t=setTimeout(()=>{if(!fini){fini=true;info.textContent=msgKo;clean();}},25000);
+  f.submit();
+  ifr.addEventListener('load',()=>{if(fini)return;fini=true;clearTimeout(t);info.textContent=msgOk;clean();});
+}
 function envoyerMail(canvas,cmd,fn){
   const info=$('okMail');info.textContent='Envoi du fichier à Nizar…';
-  canvas.toBlob(async b=>{
-    try{
-      const f=new FormData();
-      f.append('_subject','NIZ\'ART · nouvelle commande '+cmd.num+' · '+cmd.nom);
-      f.append('_captcha','false');f.append('_template','table');
-      f.append('Commande',cmd.num);f.append('Client',cmd.nom);f.append('Téléphone',cmd.tel);
-      if(cmd.mail)f.append('E-mail',cmd.mail);if(cmd.msg)f.append('Message',cmd.msg);
-      f.append('Article',cmd.article+' × '+cmd.qty);f.append('Total',cmd.total);
-      f.append('Zone imprimée',cmd.w+' × '+cmd.h+' cm');
-      f.append('attachment',b,fn);
-      const r=await fetch('https://formsubmit.co/ajax/'+MAIL_NIZAR,{method:'POST',body:f,headers:{Accept:'application/json'}});
-      const j=await r.json().catch(()=>({}));
-      info.textContent=(r.ok&&String(j.success)!=='false')?'✓ Fichier d’impression envoyé à Nizar par mail.':'⚠ Envoi par mail impossible pour le moment (le fichier est quand même téléchargé).';
-    }catch(e){info.textContent='⚠ Envoi par mail impossible (pas de connexion ?). Le fichier est quand même téléchargé.';}
+  canvas.toBlob(b=>{
+    const c={_subject:'NIZ\'ART · nouvelle commande '+cmd.num+' · '+cmd.nom,Commande:cmd.num,Client:cmd.nom,Telephone:cmd.tel,Article:cmd.article+' × '+cmd.qty,Total:cmd.total,Zone_imprimee:cmd.w+' × '+cmd.h+' cm'};
+    if(cmd.mail)c.Email=cmd.mail;if(cmd.msg)c.Message=cmd.msg;
+    envoiFormSubmit(c,[{blob:b,nom:fn}],info,'✓ Fichier d’impression envoyé à Nizar par mail.','⚠ Envoi par mail pas confirmé (connexion ?). Le fichier est quand même téléchargé.');
   },'image/png');
 }
 function telechargerPNG(canvas,nom){
