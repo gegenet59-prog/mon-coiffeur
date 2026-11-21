@@ -327,6 +327,13 @@ textarea{min-height:70px;resize:vertical}
     <button id="aOrders">📦 Commandes (<span id="nOrders">0</span>)</button>
     <button id="aClose">← Retour au site</button>
   </div>
+  <div class="adm-box" style="background:var(--card,#17151b);border:1px solid var(--line,#2a2730);border-radius:14px;padding:12px;margin-bottom:12px">
+    <b>📬 Réception des photos clients</b>
+    <label class="f"><span>Adresse mail de la boutique (les envois arrivent ici)</span><input type="email" id="mBoutique" placeholder="photos@niz-art.fr"></label>
+    <label class="f"><span>Lien de ma boîte mail (facultatif, sinon déduit de l'adresse)</span><input type="url" id="mLien" placeholder="https://outlook.live.com/mail/"></label>
+    <div class="row"><button class="small" id="mSave">Enregistrer</button><a id="mOpen" target="_blank" rel="noopener" style="text-decoration:none"><button class="gold small" type="button">📬 Ouvrir ma boîte mail</button></a></div>
+    <p class="sub" id="mNote" style="margin:6px 0 0;font-size:12.5px">Dans le mail reçu : la photo est en pièce jointe, il suffit de la télécharger.</p>
+  </div>
   <div class="adm-list" id="aList"></div>
   <div class="row" style="margin-top:16px">
     <button class="small danger" id="aDelDemo">Supprimer tous les articles de démo</button>
@@ -3522,7 +3529,22 @@ function exportHD(){
 }
 /* ENVOI À NIZAR (test) : service gratuit FormSubmit, le fichier part en pièce jointe par mail. Au 1er envoi, Nizar reçoit un mail « Activer » à valider une fois.
    Plus tard, sur l'hébergement de Nizar, cette adresse sera remplacée par son propre script PHP. */
-const MAIL_NIZAR='nizarneffati@hotmail.fr';
+const MAIL_DEF='nizarneffati@hotmail.fr',KEY_M='nizart-v4-mail';
+let MAIL_NIZAR=(load(KEY_M,{}).adr)||MAIL_DEF;
+function lienBoite(adr,lien){if(lien)return lien;const d=(adr.split('@')[1]||'').toLowerCase();
+  if(/^(hotmail|outlook|live|msn)\./.test(d))return 'https://outlook.live.com/mail/';
+  if(/^(gmail|googlemail)\./.test(d))return 'https://mail.google.com/mail/';
+  if(/^(yahoo|ymail)\./.test(d))return 'https://mail.yahoo.com/';
+  if(/^(orange|wanadoo)\./.test(d))return 'https://messagerie.orange.fr/';
+  if(/^(free)\./.test(d))return 'https://webmail.free.fr/';
+  return d?'https://'+d+'/':'#';}
+function majMailAdmin(){const m=load(KEY_M,{});$('mBoutique').value=MAIL_NIZAR;$('mLien').value=m.lien||'';$('mOpen').href=lienBoite(MAIL_NIZAR,m.lien||'');}
+$('mSave').onclick=()=>{const a=$('mBoutique').value.trim(),l=$('mLien').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(a)){toast('Adresse mail invalide');return;}
+  if(l&&!/^https?:\/\//.test(l)){toast('Le lien doit commencer par https://');return;}
+  const change=a.toLowerCase()!==MAIL_NIZAR.toLowerCase();MAIL_NIZAR=a;save(KEY_M,{adr:a,lien:l});majMailAdmin();
+  toast(change?'Enregistré. 1er envoi : clique sur le mail d\'activation reçu à cette adresse':'Enregistré ✓');};
+majMailAdmin();
 const mailOK=m=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m);
 /* Envoi par un vrai formulaire caché (la méthode que FormSubmit documente pour les pièces jointes), dans un cadre invisible pour rester dans l'appli */
 function envoiFormSubmit(champs,fichiers,info,msgOk,msgKo){
