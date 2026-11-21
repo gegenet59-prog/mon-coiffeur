@@ -1007,25 +1007,33 @@ $('barNext').onclick=()=>{
     const nom=$('cNom').value.trim(),tel=$('cTel').value.trim();
     if(!nom||tel.replace(/\D/g,'').length<10){toast('Indiquez votre nom et un numéro de téléphone');return;}
     const num='NZ-'+Date.now().toString(36).slice(-5).toUpperCase();
-    const hd=exportHD();
-    ORDERS.unshift({num,date:new Date().toLocaleString('fr-FR'),nom,tel,mail:$('cMail').value.trim(),msg:$('cMsg').value.trim(),article:sup.nom,qty,total:total(),w:sup.w,h:sup.h,apercu:$('recImg').src,hd});
-    while(ORDERS.length && !save(KEY_O,ORDERS)) ORDERS.pop(); // garde les plus récentes si la mémoire est pleine
+    const cv=exportHD(),hd=cv.toDataURL('image/png'),fn=nomFichier(num,nom);
+    telechargerPNG(cv,fn); // le fichier d'impression part directement
+    const cmd={num,date:new Date().toLocaleString('fr-FR'),nom,tel,mail:$('cMail').value.trim(),msg:$('cMsg').value.trim(),article:sup.nom,qty,total:total(),w:sup.w,h:sup.h,apercu:$('recImg').src,hd,fn};
+    ORDERS.unshift(cmd);
+    while(ORDERS.length>1 && !save(KEY_O,ORDERS)) ORDERS.pop(); // garde les plus récentes si la mémoire est pleine
+    if(!save(KEY_O,ORDERS)){delete cmd.hd;save(KEY_O,[cmd]);ORDERS=[cmd];} // dernier recours : commande sans le gros fichier
     $('okNom').textContent=nom.split(' ')[0];$('okNum').textContent=num;
     step='ed';$('barNext').textContent='Valider';show('v-ok');
   }
 };
 $('btnAgain').onclick=()=>{st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
-/* Fichier d'impression : la zone seule, en haute définition (150 DPI, max 2400 px dans la démo) */
+/* Fichier d'impression : la zone seule, fond TRANSPARENT (seuls photos et texte), 300 DPI, PNG.
+   La couleur du mug n'est jamais dans le fichier : c'est l'imprimante qui décide (blanc / sublimation). */
 function exportHD(){
-  const z=zoneNow||getDraw(sup).z;
-  let W=Math.round(sup.w/2.54*150),H=Math.round(sup.h/2.54*150);
-  const m=Math.max(W,H);if(m>2400){W=Math.round(W*2400/m);H=Math.round(H*2400/m);}
+  let z,Wcm=sup.w,Hcm=sup.h;
+  if(sup.dessin==='mug3d'){const g=mugGeo(sup);z={x:0,y:0,w:g.T,h:g.Hb};}else z=zoneNow||getDraw(sup).z;
+  let W=Math.round(Wcm/2.54*300),H=Math.round(Hcm/2.54*300);
+  const m=Math.max(W,H);if(m>4000){W=Math.round(W*4000/m);H=Math.round(H*4000/m);}
   const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
-  g.fillStyle='#fff';g.fillRect(0,0,W,H);
   g.scale(W/z.w,H/z.h);g.translate(-z.x,-z.y);
   drawAll(g,st,z);
-  return c.toDataURL('image/jpeg',.9);
+  return c;
 }
+function telechargerPNG(canvas,nom){
+  canvas.toBlob(b=>{if(!b)return;const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=nom;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);},'image/png');
+}
+const nomFichier=(num,nom)=>('NIZART-'+num+'-'+nom).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/-+$/,'')+'.png';
 
 /* ============ Espace Nizar ============ */
 let adminOK=false;
@@ -1083,7 +1091,7 @@ function buildOrders(){
     r.appendChild(t);
     const a=document.createElement('div');a.className='adm-actions';
     const v=document.createElement('button');v.className='small';v.textContent='Fichier HD';
-    v.onclick=()=>{const m=document.createElement('div');m.className='modal';m.innerHTML='<div class="box" style="max-width:640px"><p class="spec">Fichier d\'impression (zone seule). Dans la vraie version : bouton « Télécharger » + copie sur la Freebox.</p><img style="width:100%;border-radius:10px;margin:10px 0"><button class="gold" style="width:100%">Fermer</button></div>';m.querySelector('img').src=o.hd||o.apercu;m.querySelector('button').onclick=()=>m.remove();document.body.appendChild(m);};
+    v.onclick=()=>{const m=document.createElement('div');m.className='modal';m.innerHTML='<div class="box" style="max-width:640px"><p class="spec">Fichier d\'impression (zone seule). Dans la vraie version : bouton « Télécharger » + copie sur la Freebox.</p><img style="width:100%;border-radius:10px;margin:10px 0"><button class="gold" style="width:100%">Fermer</button></div>';m.querySelector('img').src=o.hd||o.apercu;m.querySelector('img').style.background='repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/16px 16px';if(o.hd){const d=document.createElement('a');d.className='gold';d.textContent='⬇ Télécharger le PNG';d.href=o.hd;d.download=o.fn||(o.num+'.png');d.style.cssText='display:block;text-align:center;padding:12px;border-radius:12px;margin-bottom:8px;text-decoration:none';m.querySelector('button').before(d);}m.querySelector('button').onclick=()=>m.remove();document.body.appendChild(m);};
     a.appendChild(v);r.appendChild(a);L.appendChild(r);
   });
 }
