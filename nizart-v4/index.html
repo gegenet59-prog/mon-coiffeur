@@ -253,6 +253,7 @@ textarea{min-height:70px;resize:vertical}
     <div class="big">✨</div>
     <h1>Merci <span id="okNom"></span> !</h1>
     <p class="sub">Votre création n° <b class="gold-t" id="okNum"></b> est enregistrée.<br>Nizar vous envoie un message dès qu'elle est prête.</p>
+    <p class="sub" id="okMail"></p>
     <div class="note" style="max-width:460px;margin:16px auto">Démo : rien n'est réellement envoyé. Dans la vraie version, la photo en haute définition et la commande partent chez Nizar (e-mail + espace commandes), et le client reçoit un SMS ou WhatsApp « c'est prêt ».</div>
     <button class="gold" id="btnAgain" style="margin-top:14px">Créer autre chose</button>
   </div>
@@ -1010,6 +1011,7 @@ $('barNext').onclick=()=>{
     const cv=exportHD(),hd=cv.toDataURL('image/png'),fn=nomFichier(num,nom);
     telechargerPNG(cv,fn); // le fichier d'impression part directement
     const cmd={num,date:new Date().toLocaleString('fr-FR'),nom,tel,mail:$('cMail').value.trim(),msg:$('cMsg').value.trim(),article:sup.nom,qty,total:total(),w:sup.w,h:sup.h,apercu:$('recImg').src,hd,fn};
+    envoyerMail(cv,cmd,fn);
     ORDERS.unshift(cmd);
     while(ORDERS.length>1 && !save(KEY_O,ORDERS)) ORDERS.pop(); // garde les plus récentes si la mémoire est pleine
     if(!save(KEY_O,ORDERS)){delete cmd.hd;save(KEY_O,[cmd]);ORDERS=[cmd];} // dernier recours : commande sans le gros fichier
@@ -1029,6 +1031,27 @@ function exportHD(){
   g.scale(W/z.w,H/z.h);g.translate(-z.x,-z.y);
   drawAll(g,st,z);
   return c;
+}
+/* ENVOI À NIZAR (test) : service gratuit FormSubmit, le fichier part en pièce jointe par mail. Au 1er envoi, Nizar reçoit un mail « Activer » à valider une fois.
+   Plus tard, sur l'hébergement de Nizar, cette adresse sera remplacée par son propre script PHP. */
+const MAIL_NIZAR='nizarneffati@hotmail.fr';
+function envoyerMail(canvas,cmd,fn){
+  const info=$('okMail');info.textContent='Envoi du fichier à Nizar…';
+  canvas.toBlob(async b=>{
+    try{
+      const f=new FormData();
+      f.append('_subject','NIZ\'ART · nouvelle commande '+cmd.num+' · '+cmd.nom);
+      f.append('_captcha','false');f.append('_template','table');
+      f.append('Commande',cmd.num);f.append('Client',cmd.nom);f.append('Téléphone',cmd.tel);
+      if(cmd.mail)f.append('E-mail',cmd.mail);if(cmd.msg)f.append('Message',cmd.msg);
+      f.append('Article',cmd.article+' × '+cmd.qty);f.append('Total',cmd.total);
+      f.append('Zone imprimée',cmd.w+' × '+cmd.h+' cm');
+      f.append('attachment',b,fn);
+      const r=await fetch('https://formsubmit.co/ajax/'+MAIL_NIZAR,{method:'POST',body:f,headers:{Accept:'application/json'}});
+      const j=await r.json().catch(()=>({}));
+      info.textContent=(r.ok&&String(j.success)!=='false')?'✓ Fichier d’impression envoyé à Nizar par mail.':'⚠ Envoi par mail impossible pour le moment (le fichier est quand même téléchargé).';
+    }catch(e){info.textContent='⚠ Envoi par mail impossible (pas de connexion ?). Le fichier est quand même téléchargé.';}
+  },'image/png');
 }
 function telechargerPNG(canvas,nom){
   canvas.toBlob(b=>{if(!b)return;const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=nom;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);},'image/png');
