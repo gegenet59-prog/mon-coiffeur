@@ -212,6 +212,7 @@ textarea{min-height:70px;resize:vertical}
 <section id="v-cat">
   <div class="modeTabs"><button id="tabCreate" class="on">🎨 Je crée</button><button id="tabSend">📤 Nizar s'en occupe</button><button id="tabQr">📱 QR code</button></div>
   <div id="catCreate">
+  <div class="note hidden" id="attenteBan" style="margin:0 0 10px;text-align:center">📷 <b id="attenteN"></b> reçue(s) depuis votre téléphone : <b>touchez un article</b> pour les poser dessus.</div>
   <div class="steps"><span class="on">1. Support</span><span>2. Ma photo</span><span>3. Validation</span></div>
   <h1>Choisissez votre support</h1>
   <p class="sub">Du cure-dent au mur XXL : touchez un article pour y placer votre photo.</p>
@@ -3387,7 +3388,7 @@ function setTab(m){if(m===true)m='send';if(m===false)m='create';
   $('tabCreate').classList.toggle('on',m==='create');$('tabSend').classList.toggle('on',m==='send');$('tabQr').classList.toggle('on',m==='qr');
   $('catCreate').classList.toggle('hidden',m!=='create');$('catSend').classList.toggle('hidden',m!=='send');$('catQr').classList.toggle('hidden',m!=='qr');
   if(m==='send'){const a=$('sArt');const keep=a.value;a.innerHTML='<option>Je ne sais pas, conseillez-moi</option>';visibles().forEach(i=>{const o=document.createElement('option');o.textContent=i.nom;a.appendChild(o);});if(keep)a.value=keep;}
-  if(m==='qr')qrRubrique();else if($('qrBox').classList.contains('hidden'))arreterQR();}
+  if(m==='qr'){qrGarde=false;qrRubrique();}else if(!qrGarde&&$('qrBox').classList.contains('hidden'))arreterQR();}
 $('tabCreate').onclick=()=>setTab('create');$('tabSend').onclick=()=>setTab('send');$('tabQr').onclick=()=>setTab('qr');
 $('sPick').onclick=()=>$('sFile').click();
 function reduirePhoto(file,max){return new Promise(res=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>res({blob:b,canvas:c}),'image/jpeg',.9);};im.onerror=()=>res(null);im.src=u;});}
@@ -3424,7 +3425,7 @@ function planRaz(){clearTimeout(razT);['cNom','cMail','cMsg'].forEach(k=>{try{$(
    valable 5 minutes (protection : un QR photographié à distance ne sert plus ensuite).
    Sur l'hébergement de Nizar, ce relais sera remplacé par son propre script PHP. */
 const RELAIS='https://ntfy.sh/';
-let qrSrc=null,qrCible='create',qrTimer=0,attente=[];
+let qrSrc=null,qrCible='create',qrTimer=0,attente=[],qrGarde=false;
 function dessinerQR(cv,url){const q=qrcode(0,'M');q.addData(url);q.make();const g=cv.getContext('2d'),n=q.getModuleCount(),k=Math.floor(cv.width/n),off=Math.floor((cv.width-k*n)/2);
   g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(off+c*k,off+r*k,k,k);}
 function arreterQR(){clearTimeout(qrTimer);if(qrSrc){qrSrc.close();qrSrc=null;}}
@@ -3459,10 +3460,13 @@ $('sQr').onclick=()=>ouvrirQR('send');
 /* Rubrique « QR code » de la borne : les photos reçues attendent, puis se posent sur l'article choisi */
 function qrRubrique(){
   if($('catQr').classList.contains('hidden'))return;
-  demarrerQR($('qrCv2'),$('qrEtat2'),f=>{if(attente.length>=6){return;}attente.push(f);majAttente();$('qrEtat2').textContent='✓ Photo reçue ! Vous pouvez en envoyer d\'autres.';},qrRubrique);}
-function majAttente(){const t=$('qrThumbs');t.innerHTML='';attente.forEach((f,i)=>{const d=document.createElement('div'),im=document.createElement('img'),x=document.createElement('button');im.src=URL.createObjectURL(f);x.textContent='✕';x.onclick=()=>{attente.splice(i,1);majAttente();};d.append(im,x);t.appendChild(d);});$('qrGo').classList.toggle('hidden',!attente.length);}
-$('qrGo').onclick=()=>{arreterQR();setTab('create');toast('Choisissez votre support : vos photos seront posées dessus');};
-function chargerAttente(){const fs=attente.splice(0);majAttente();(async()=>{for(const f of fs){await new Promise(res=>{const im=new Image();im.onload=()=>{setImg(im);res();};im.onerror=res;im.src=URL.createObjectURL(f);});}})();}
+  demarrerQR($('qrCv2'),$('qrEtat2'),f=>{if(attente.length>=6)return;attente.push(f);majAttente();$('qrEtat2').textContent='✓ Photo reçue !';
+    qrGarde=true; // l'écoute reste ouverte quelques instants pour les photos suivantes
+    clearTimeout(qrAuto);qrAuto=setTimeout(()=>{if(!$('catQr').classList.contains('hidden')){setTab('create');toast('Photo reçue : choisissez votre support');}},1200);},qrRubrique);}
+let qrAuto=0;
+function majAttente(){const t=$('qrThumbs');t.innerHTML='';attente.forEach((f,i)=>{const d=document.createElement('div'),im=document.createElement('img'),x=document.createElement('button');im.src=URL.createObjectURL(f);x.textContent='✕';x.onclick=()=>{attente.splice(i,1);majAttente();};d.append(im,x);t.appendChild(d);});$('qrGo').classList.toggle('hidden',!attente.length);$('attenteN').textContent=attente.length+(attente.length>1?' photos':' photo');$('attenteBan').classList.toggle('hidden',!attente.length);}
+$('qrGo').onclick=()=>{clearTimeout(qrAuto);setTab('create');toast('Choisissez votre support : vos photos seront posées dessus');};
+function chargerAttente(){qrGarde=false;arreterQR();const fs=attente.splice(0);majAttente();(async()=>{for(const f of fs){await new Promise(res=>{const im=new Image();im.onload=()=>{setImg(im);res();};im.onerror=res;im.src=URL.createObjectURL(f);});}})();}
 const _openEditor=openEditor;openEditor=function(item){_openEditor(item);if(attente.length)chargerAttente();};
 /* Côté téléphone : page ?envoi=CODE */
 (function(){const id=new URLSearchParams(location.search).get('envoi');if(!id||!/^[a-z0-9]{8,40}$/.test(id))return;
@@ -3489,7 +3493,7 @@ function pagePhone(){
     e.target.value='';};
 }
 if(new URLSearchParams(location.search).get('onglet')==='nizar')setTimeout(()=>setTab('send'),0);
-$('btnAgain').onclick=()=>{attente=[];majAttente();setTab('create');st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
+$('btnAgain').onclick=()=>{qrGarde=false;arreterQR();attente=[];majAttente();setTab('create');st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
 /* Fichier d'impression : la zone seule, fond TRANSPARENT (seuls photos et texte), 300 DPI, PNG.
    La couleur du mug n'est jamais dans le fichier : c'est l'imprimante qui décide (blanc / sublimation). */
 function exportHD(){
