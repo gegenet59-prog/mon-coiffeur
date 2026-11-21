@@ -169,7 +169,7 @@ textarea{min-height:70px;resize:vertical}
 .ms-note{font-size:12px;color:var(--mut);text-align:center;min-height:16px}
 
 .modeTabs{display:flex;gap:8px;margin:2px 0 14px}
-.modeTabs button{flex:1;padding:11px 4px;border-radius:12px;font-size:14px;white-space:nowrap}
+.modeTabs button{flex:1;padding:11px 2px;border-radius:12px;font-size:13px;white-space:nowrap}
 .modeTabs button.on{background:var(--or);color:#1a1408;border-color:var(--or);font-weight:600}
 .sThumbs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
 .sThumbs div{position:relative}
@@ -190,20 +190,41 @@ textarea{min-height:70px;resize:vertical}
 
 <!-- ===== Étape 1 : catalogue ===== -->
 <section id="v-tel" class="hidden">
-  <h1>Envoyer ma photo à la borne</h1>
-  <p class="sub">Choisissez la photo à utiliser : elle apparaît sur l'écran de la borne.</p>
-  <button class="gold" id="tPick" style="width:100%;padding:16px;font-size:17px">📷 Choisir ma photo</button>
-  <input type="file" id="tFile" accept="image/*" multiple class="vh">
-  <p class="sub" id="tEtat" style="margin-top:14px"></p>
+  <div id="tChoix">
+    <h1>Où êtes-vous ?</h1>
+    <button class="gold" id="tBout" style="width:100%;padding:18px;font-size:17px;margin-bottom:10px">📍 Je suis en boutique</button>
+    <button id="tExt" style="width:100%;padding:18px;font-size:17px">🏠 Je suis à l'extérieur</button>
+  </div>
+  <div id="tBoutique" class="hidden">
+    <h1>Envoyer ma photo à la borne</h1>
+    <p class="sub">Choisissez votre photo : elle apparaît sur l'écran de la borne, et vous créez votre article là-bas.</p>
+    <button class="gold" id="tPick" style="width:100%;padding:16px;font-size:17px">📷 Choisir ma photo</button>
+    <input type="file" id="tFile" accept="image/*" multiple class="vh">
+    <p class="sub" id="tEtat" style="margin-top:14px"></p>
+  </div>
+  <div id="tExterieur" class="hidden">
+    <h1>Depuis chez vous</h1>
+    <p class="sub">La borne n'est utilisable qu'en boutique. Deux possibilités :</p>
+    <a class="gold" id="tCreer" style="display:block;text-align:center;padding:16px;border-radius:14px;text-decoration:none;margin-bottom:10px">🎨 Créer sur mon téléphone</a>
+    <a id="tNizar" style="display:block;text-align:center;padding:16px;border-radius:14px;text-decoration:none;border:1px solid var(--line);color:inherit">📤 Envoyer ma photo à Nizar (il s'en occupe)</a>
+  </div>
 </section>
 <section id="v-cat">
-  <div class="modeTabs"><button id="tabCreate" class="on">🎨 Je crée moi-même</button><button id="tabSend">📤 Nizar s'en occupe</button></div>
+  <div class="modeTabs"><button id="tabCreate" class="on">🎨 Je crée</button><button id="tabSend">📤 Nizar s'en occupe</button><button id="tabQr">📱 QR code</button></div>
   <div id="catCreate">
   <div class="steps"><span class="on">1. Support</span><span>2. Ma photo</span><span>3. Validation</span></div>
   <h1>Choisissez votre support</h1>
   <p class="sub">Du cure-dent au mur XXL : touchez un article pour y placer votre photo.</p>
   <div class="chips" id="chips"></div>
   <div class="grid" id="grid"></div>
+  </div>
+  <div id="catQr" class="hidden" style="text-align:center">
+    <h1>Envoyez votre photo avec votre téléphone</h1>
+    <p class="sub">1. Scannez ce code avec l'appareil photo de votre téléphone<br>2. Dites si vous êtes en boutique ou à l'extérieur<br>3. Choisissez votre photo : elle arrive ici toute seule</p>
+    <canvas id="qrCv2" width="300" height="300" style="background:#fff;border-radius:14px;padding:8px;width:230px;height:230px"></canvas>
+    <p class="sub" id="qrEtat2">En attente de votre photo…</p>
+    <div id="qrThumbs" class="sThumbs" style="justify-content:center"></div>
+    <button class="gold hidden" id="qrGo" style="width:100%;margin-top:6px">Choisir mon support →</button>
   </div>
   <div id="catSend" class="hidden">
     <h1>Nizar s'occupe de tout</h1>
@@ -3362,9 +3383,12 @@ $('barNext').onclick=()=>{
 };
 /* ============ Onglet « Nizar s'en occupe » : le client envoie juste ses photos ============ */
 let sPhotos=[]; // {url (miniature), blob}
-function setTab(send){$('tabCreate').classList.toggle('on',!send);$('tabSend').classList.toggle('on',send);$('catCreate').classList.toggle('hidden',send);$('catSend').classList.toggle('hidden',!send);
-  if(send){const a=$('sArt');const keep=a.value;a.innerHTML='<option>Je ne sais pas, conseillez-moi</option>';visibles().forEach(i=>{const o=document.createElement('option');o.textContent=i.nom;a.appendChild(o);});if(keep)a.value=keep;}}
-$('tabCreate').onclick=()=>setTab(false);$('tabSend').onclick=()=>setTab(true);
+function setTab(m){if(m===true)m='send';if(m===false)m='create';
+  $('tabCreate').classList.toggle('on',m==='create');$('tabSend').classList.toggle('on',m==='send');$('tabQr').classList.toggle('on',m==='qr');
+  $('catCreate').classList.toggle('hidden',m!=='create');$('catSend').classList.toggle('hidden',m!=='send');$('catQr').classList.toggle('hidden',m!=='qr');
+  if(m==='send'){const a=$('sArt');const keep=a.value;a.innerHTML='<option>Je ne sais pas, conseillez-moi</option>';visibles().forEach(i=>{const o=document.createElement('option');o.textContent=i.nom;a.appendChild(o);});if(keep)a.value=keep;}
+  if(m==='qr')qrRubrique();else if($('qrBox').classList.contains('hidden'))arreterQR();}
+$('tabCreate').onclick=()=>setTab('create');$('tabSend').onclick=()=>setTab('send');$('tabQr').onclick=()=>setTab('qr');
 $('sPick').onclick=()=>$('sFile').click();
 function reduirePhoto(file,max){return new Promise(res=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>res({blob:b,canvas:c}),'image/jpeg',.9);};im.onerror=()=>res(null);im.src=u;});}
 $('sFile').onchange=async e=>{
@@ -3396,32 +3420,34 @@ $('sSend').onclick=async()=>{
 let razT=0;
 function planRaz(){clearTimeout(razT);['cNom','cMail','cMsg'].forEach(k=>{try{$(k).value='';}catch(e){}});razT=setTimeout(()=>{if(!$('v-ok').classList.contains('hidden'))$('btnAgain').click();},60000);}
 /* ============ QR code : le client envoie sa photo depuis son téléphone vers la borne ============ */
-/* Relais gratuit ntfy.sh (sans compte) : la photo transite quelques heures puis est effacée. Chaque borne utilise un code unique aléatoire.
-   Sur l'hébergement de Nizar, ce relais sera remplacé par son propre script PHP (la photo ne passera plus par un service tiers). */
+/* Relais gratuit ntfy.sh (sans compte) : la photo transite quelques heures puis est effacée. Chaque affichage utilise un code unique aléatoire,
+   valable 5 minutes (protection : un QR photographié à distance ne sert plus ensuite).
+   Sur l'hébergement de Nizar, ce relais sera remplacé par son propre script PHP. */
 const RELAIS='https://ntfy.sh/';
-let qrSrc=null,qrCible='create';
-function ouvrirQR(cible){
-  qrCible=cible;fermerQR();
+let qrSrc=null,qrCible='create',qrTimer=0,attente=[];
+function dessinerQR(cv,url){const q=qrcode(0,'M');q.addData(url);q.make();const g=cv.getContext('2d'),n=q.getModuleCount(),k=Math.floor(cv.width/n),off=Math.floor((cv.width-k*n)/2);
+  g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(off+c*k,off+r*k,k,k);}
+function arreterQR(){clearTimeout(qrTimer);if(qrSrc){qrSrc.close();qrSrc=null;}}
+function demarrerQR(cv,etat,onPhoto,onRenouv){
+  arreterQR();
   const id=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');
-  const url=location.origin+location.pathname+'?envoi='+id;
-  const q=qrcode(0,'M');q.addData(url);q.make();
-  const cv=$('qrCv'),g=cv.getContext('2d'),n=q.getModuleCount(),k=Math.floor(cv.width/n);
-  g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';
-  const off=Math.floor((cv.width-k*n)/2);
-  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(off+c*k,off+r*k,k,k);
-  $('qrEtat').textContent='En attente de votre photo…';$('qrBox').classList.remove('hidden');
+  dessinerQR(cv,location.origin+location.pathname+'?envoi='+id);
+  etat.textContent='En attente de votre photo…';
   try{
     qrSrc=new EventSource(RELAIS+'nizart-'+id+'/sse');
     qrSrc.onmessage=async e=>{let d;try{d=JSON.parse(e.data);}catch(_){return;}
       if(!d.attachment||!d.attachment.url)return;
-      $('qrEtat').textContent='Photo reçue, chargement…';
-      try{const r=await fetch(d.attachment.url);const b=await r.blob();const f=new File([b],d.attachment.name||'photo.jpg',{type:b.type||'image/jpeg'});
-        $('qrEtat').textContent='✓ Photo reçue !';recevoirPhoto(f);}
-      catch(err){$('qrEtat').textContent='⚠ Photo non récupérée, réessayez.';}};
-    qrSrc.onerror=()=>{$('qrEtat').textContent='Connexion au relais impossible pour le moment…';};
-  }catch(e){$('qrEtat').textContent='Relais indisponible.';}
+      etat.textContent='Photo reçue, chargement…';
+      try{const r=await fetch(d.attachment.url);const b=await r.blob();onPhoto(new File([b],d.attachment.name||'photo.jpg',{type:b.type||'image/jpeg'}));}
+      catch(err){etat.textContent='⚠ Photo non récupérée, réessayez.';}};
+    qrSrc.onerror=()=>{etat.textContent='Connexion au relais impossible pour le moment…';};
+  }catch(e){etat.textContent='Relais indisponible.';}
+  qrTimer=setTimeout(()=>{if(onRenouv)onRenouv();},5*60*1000); // le code change toutes les 5 minutes
 }
-function fermerQR(){if(qrSrc){qrSrc.close();qrSrc=null;}$('qrBox').classList.add('hidden');}
+/* Petite fenêtre (depuis l'éditeur / le studio / l'onglet Nizar s'en occupe) */
+function ouvrirQR(cible){qrCible=cible;$('qrBox').classList.remove('hidden');
+  demarrerQR($('qrCv'),$('qrEtat'),f=>{$('qrEtat').textContent='✓ Photo reçue !';recevoirPhoto(f);},()=>{if(!$('qrBox').classList.contains('hidden'))ouvrirQR(cible);});}
+function fermerQR(){arreterQR();$('qrBox').classList.add('hidden');}
 function recevoirPhoto(f){
   if(qrCible==='send'){reduirePhoto(f,2400).then(r=>{if(!r)return;if(sPhotos.length<4){sPhotos.push({blob:r.blob,url:URL.createObjectURL(r.blob),name:'photo'});drawThumbs();}else toast('4 photos maximum');});setTimeout(()=>{if(qrSrc)$('qrEtat').textContent='✓ Photo reçue ! Scannez encore pour en ajouter, ou fermez.';},50);}
   else{readFile(f);setTimeout(fermerQR,700);}
@@ -3430,14 +3456,26 @@ $('qrFin').onclick=fermerQR;
 $('qrPhoto').onclick=()=>ouvrirQR('create');
 $('msQr').onclick=()=>ouvrirQR('create');
 $('sQr').onclick=()=>ouvrirQR('send');
+/* Rubrique « QR code » de la borne : les photos reçues attendent, puis se posent sur l'article choisi */
+function qrRubrique(){
+  if($('catQr').classList.contains('hidden'))return;
+  demarrerQR($('qrCv2'),$('qrEtat2'),f=>{if(attente.length>=6){return;}attente.push(f);majAttente();$('qrEtat2').textContent='✓ Photo reçue ! Vous pouvez en envoyer d\'autres.';},qrRubrique);}
+function majAttente(){const t=$('qrThumbs');t.innerHTML='';attente.forEach((f,i)=>{const d=document.createElement('div'),im=document.createElement('img'),x=document.createElement('button');im.src=URL.createObjectURL(f);x.textContent='✕';x.onclick=()=>{attente.splice(i,1);majAttente();};d.append(im,x);t.appendChild(d);});$('qrGo').classList.toggle('hidden',!attente.length);}
+$('qrGo').onclick=()=>{arreterQR();setTab('create');toast('Choisissez votre support : vos photos seront posées dessus');};
+function chargerAttente(){const fs=attente.splice(0);majAttente();(async()=>{for(const f of fs){await new Promise(res=>{const im=new Image();im.onload=()=>{setImg(im);res();};im.onerror=res;im.src=URL.createObjectURL(f);});}})();}
+const _openEditor=openEditor;openEditor=function(item){_openEditor(item);if(attente.length)chargerAttente();};
 /* Côté téléphone : page ?envoi=CODE */
 (function(){const id=new URLSearchParams(location.search).get('envoi');if(!id||!/^[a-z0-9]{8,40}$/.test(id))return;
   document.addEventListener('DOMContentLoaded',()=>{});
   window.__envoiId=id;})();
 function pagePhone(){
   const id=window.__envoiId;if(!id)return;
-  document.querySelectorAll('header,#demoBanner,.wrap>section:not(#v-tel)').forEach(e=>{if(e.id!=='v-tel')e.classList.add('hidden');});
+  document.querySelectorAll('header,#demoBanner,.wrap>section').forEach(e=>{if(e.id!=='v-tel')e.classList.add('hidden');});
   $('bar').classList.add('hidden');VIEWS.forEach(x=>$(x).classList.toggle('hidden',x!=='v-tel'));
+  const base=location.origin+location.pathname;
+  $('tCreer').href=base;$('tNizar').href=base+'?onglet=nizar';
+  $('tBout').onclick=()=>{$('tChoix').classList.add('hidden');$('tBoutique').classList.remove('hidden');};
+  $('tExt').onclick=()=>{$('tChoix').classList.add('hidden');$('tExterieur').classList.remove('hidden');};
   $('tPick').onclick=()=>$('tFile').click();
   $('tFile').onchange=async e=>{
     for(const f of [...e.target.files]){
@@ -3450,8 +3488,8 @@ function pagePhone(){
     }
     e.target.value='';};
 }
-
-$('btnAgain').onclick=()=>{setTab(false);st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
+if(new URLSearchParams(location.search).get('onglet')==='nizar')setTimeout(()=>setTab('send'),0);
+$('btnAgain').onclick=()=>{attente=[];majAttente();setTab('create');st={img:null,scale:1,rot:0,ox:0,oy:0};fixed=[];show('v-cat');};
 /* Fichier d'impression : la zone seule, fond TRANSPARENT (seuls photos et texte), 300 DPI, PNG.
    La couleur du mug n'est jamais dans le fichier : c'est l'imprimante qui décide (blanc / sublimation). */
 function exportHD(){
