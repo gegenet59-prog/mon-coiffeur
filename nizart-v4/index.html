@@ -330,7 +330,7 @@ textarea{min-height:70px;resize:vertical}
   <div class="adm-box" style="background:var(--card,#17151b);border:1px solid var(--line,#2a2730);border-radius:14px;padding:12px;margin-bottom:12px">
     <b>📬 Réception des photos clients</b>
     <label class="f"><span>Adresse mail de la boutique (les envois arrivent ici)</span><input type="email" id="mBoutique" placeholder="photos@niz-art.fr"></label>
-    <label class="f"><span>Lien de ma boîte mail (facultatif, sinon déduit de l'adresse)</span><input type="url" id="mLien" placeholder="https://outlook.live.com/mail/"></label>
+    <label class="f"><span>Lien de ma boîte mail (facultatif, sinon déduit de l'adresse)</span><input type="text" inputmode="url" id="mLien" placeholder="https://outlook.live.com/mail/"></label>
     <div class="row"><button class="small" id="mSave">Enregistrer</button><a id="mOpen" target="_blank" rel="noopener" style="text-decoration:none"><button class="gold small" type="button">📬 Ouvrir ma boîte mail</button></a></div>
     <p class="sub" id="mNote" style="margin:6px 0 0;font-size:12.5px">Dans le mail reçu : la photo est en pièce jointe, il suffit de la télécharger.</p>
   </div>
@@ -3567,9 +3567,12 @@ async function dessinerRecus(){
     const url=URL.createObjectURL(o.blob),im=document.createElement('img');im.src=url;im.style.cssText='width:64px;height:64px;object-fit:contain;border-radius:8px;background:repeating-conic-gradient(#2a2730 0 25%,#1d1a22 0 50%) 0 0/14px 14px';
     const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px';
     const b=document.createElement('b');b.textContent=o.titre;const sp=document.createElement('div');sp.style.cssText='color:var(--mut);word-break:break-word';sp.textContent=o.msg+' · '+new Date(o.time).toLocaleString('fr-FR');tx.append(b,sp);
-    const dl=document.createElement('a');dl.href=url;dl.download=o.nom;dl.innerHTML='<button class="gold small" type="button">⬇ Télécharger</button>';dl.style.textDecoration='none';
+    const dl=document.createElement('a');dl.href=url;dl.download=o.nom;dl.innerHTML='<button class="small" type="button">⬇ Télécharger</button>';dl.style.textDecoration='none';
+    const pr=document.createElement('button');pr.className='gold small';pr.textContent='✏️ Préparer ici';pr.title='Ouvre la photo dans l\'appli : choisis le support et prépare la commande du client';
+    pr.onclick=()=>{attente.push(new File([o.blob],o.nom,{type:o.blob.type||'image/jpeg'}));majAttente();$('aClose').click();setTab('create');toast('Photo prête : choisis le support pour la préparer');};
+    const act=document.createElement('div');act.style.cssText='display:flex;flex-direction:column;gap:6px;align-items:stretch';act.append(pr,dl);
     const x=document.createElement('button');x.className='small danger';x.textContent='🗑';x.onclick=async()=>{if(confirm('Supprimer cette photo reçue ?')){await idbDel(o.id);dessinerRecus();}};
-    row.append(im,tx,dl,x);box.appendChild(row);});}
+    row.append(im,tx,act,x);box.appendChild(row);});}
 $('rRef').onclick=()=>{toast('Actualisation…');actualiserRecus();};
 const MAIL_DEF='nizarneffati@hotmail.fr',KEY_M='nizart-v4-mail';
 let MAIL_NIZAR=(load(KEY_M,{}).adr)||MAIL_DEF;
